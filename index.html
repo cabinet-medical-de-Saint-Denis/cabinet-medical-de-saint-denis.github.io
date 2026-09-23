@@ -1096,6 +1096,9 @@
 
 
 .supplier-place-heading .supplier-add-ingredient{width:34px;height:34px;min-width:34px;padding:0;font-size:25px;line-height:1;flex-shrink:0}
+.supplier-place-heading .supplier-delete-place{height:34px;padding:0 10px;font-size:11px;line-height:1;flex-shrink:0}
+.supplier-ingredient-cell{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.supplier-delete-ingredient{flex:0 0 auto;width:30px;height:30px;min-width:30px;padding:0;font-size:18px;line-height:1}
 .supplier-add-dialog{width:min(520px,92vw);max-height:90vh;overflow:auto;background:var(--panel,#171b20);color:inherit;border:1px solid currentColor;border-radius:8px;padding:24px}
 .supplier-add-dialog::backdrop{background:#000a}
 .supplier-add-dialog .field{margin-top:14px}
@@ -3072,7 +3075,7 @@ $('navigationSave').addEventListener('click',async()=>{
         <td colspan="4">
           <div class="supplier-place-heading">
             <strong>${esc(place)}</strong>
-            <div class="supplier-place-products"><small>Produits vendus :</small>${productSummary}${place!=="Lieu non renseigné"?`<button class="btn secondary supplier-add-ingredient" type="button" data-place="${esc(place)}" aria-label="Ajouter un ingrédient à ${esc(place)}" title="Ajouter un ingrédient">+</button>`:""}</div>
+            <div class="supplier-place-products"><small>Produits vendus :</small>${productSummary}${place!=="Lieu non renseigné"?`<button class="btn secondary supplier-add-ingredient" type="button" data-place="${esc(place)}" aria-label="Ajouter un ingrédient à ${esc(place)}" title="Ajouter un ingrédient">+</button>${isAdmin?`<button class="btn danger supplier-delete-place" type="button" data-place="${esc(place)}" aria-label="Supprimer le lieu ${esc(place)}" title="Supprimer ce lieu">Supprimer le lieu</button>`:""}`:""}</div>
           </div>
         </td>
       </tr>`;
@@ -3086,7 +3089,7 @@ $('navigationSave').addEventListener('click',async()=>{
         const savedPlace=(s.place||"").trim();
         const rowPlace=savedPlace;
         return `<tr data-id="${esc(s.dbId||("new-"+s.resourceId))}" data-db-id="${esc(s.dbId||"")}" data-resource-id="${esc(s.resourceId)}" data-place="${esc(rowPlace)}">
-          <td class="resource-name">${esc(r?.name||s.resourceId)}</td>
+          <td class="resource-name"><div class="supplier-ingredient-cell"><span>${esc(r?.name||s.resourceId)}</span>${isAdmin?`<button class="btn danger supplier-delete-ingredient" type="button" data-id="${esc(s.dbId||"")}" data-resource-id="${esc(s.resourceId)}" data-place="${esc(rowPlace)}" data-name="${esc(r?.name||s.resourceId)}" aria-label="Supprimer ${esc(r?.name||s.resourceId)} de ce lieu" title="Supprimer cet ingrédient du lieu">×</button>`:""}</div></td>
           <td><div class="currency-input"><input class="sup-price" type="number" min="0" step="0.01" value="${num(s.unitPrice).toFixed(2)}"></div></td>
           <td><input class="sup-name" value="${esc(s.name)}"></td>
           <td><div class="telegram-cell"><input class="sup-telegram" value="${esc(s.telegram)}" placeholder="Ex. RH6536"><button class="btn ghost copy-telegram-btn" type="button" title="Copier le télégramme" aria-label="Copier le télégramme">⧉</button></div></td>
@@ -4367,9 +4370,45 @@ $('navigationSave').addEventListener('click',async()=>{
     dialog.showModal();
     (isNew?$("supplierAddPlace"):$("supplierAddResource")).focus();
   }
-  $("suppliersBody").addEventListener("click",e=>{
-    const button=e.target.closest(".supplier-add-ingredient");
-    if(button)openSupplierAdd(button.dataset.place);
+  $("suppliersBody").addEventListener("click",async e=>{
+    const addButton=e.target.closest(".supplier-add-ingredient");
+    if(addButton){openSupplierAdd(addButton.dataset.place);return;}
+
+    const deleteIngredient=e.target.closest(".supplier-delete-ingredient");
+    if(deleteIngredient){
+      if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
+      const name=deleteIngredient.dataset.name||"cet ingrédient";
+      const place=deleteIngredient.dataset.place||"ce lieu";
+      if(!confirm(`Retirer « ${name} » de « ${place} » ?\n\nCela retire uniquement cet ingrédient de ce fournisseur. Le stock, les recettes et l’historique ne seront pas supprimés.`))return;
+      try{
+        deleteIngredient.disabled=true;
+        const id=deleteIngredient.dataset.id;
+        if(!id)throw new Error("Fiche fournisseur introuvable.");
+        const {error}=await db.from("suppliers").update({active:false}).eq("id",id);
+        if(error)throw error;
+        await loadRemoteState();
+        toast("Ingrédient retiré du lieu.");
+      }catch(err){dbError(err,"Impossible de supprimer cet ingrédient du lieu.");}
+      finally{deleteIngredient.disabled=false;}
+      return;
+    }
+
+    const deletePlace=e.target.closest(".supplier-delete-place");
+    if(deletePlace){
+      if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
+      const place=(deletePlace.dataset.place||"").trim();
+      if(!place)return;
+      const count=state.suppliers.filter(s=>(s.place||"").trim()===place).length;
+      if(!confirm(`Supprimer le lieu « ${place} » et ses ${count} fiche${count>1?"s":""} fournisseur ?\n\nLes ingrédients, le stock, les recettes et l’historique resteront conservés.`))return;
+      try{
+        deletePlace.disabled=true;
+        const {error}=await db.from("suppliers").update({active:false}).eq("location",place).eq("active",true);
+        if(error)throw error;
+        await loadRemoteState();
+        toast("Lieu fournisseur supprimé.");
+      }catch(err){dbError(err,"Impossible de supprimer ce lieu fournisseur.");}
+      finally{deletePlace.disabled=false;}
+    }
   });
   $("addSupplierPlace").addEventListener("click",()=>openSupplierAdd(null));
   $("supplierAddCancel").addEventListener("click",()=>$("supplierAddDialog").close());
