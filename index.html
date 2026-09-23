@@ -3163,15 +3163,16 @@ $('navigationSave').addEventListener('click',async()=>{
         }
         const created=u.created_at?new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}).format(new Date(u.created_at)):"—";
         const grade=u.medical_grade||"apprenti";
-        const isChef=self && grade==="chef_de_cabinet";
-        const gradeControl=isChef
+        const isSelfChef=self && grade==="chef_de_cabinet";
+        const gradeControl=isSelfChef
           ? '<span class="pill gold">Chef de cabinet</span>'
           : `<select class="user-grade-select" aria-label="Grade de ${esc(u.display_name||u.email||"l'utilisateur")}">
               <option value="apprenti" ${grade==="apprenti"?"selected":""}>Apprenti médecin</option>
               <option value="medecin" ${grade==="medecin"?"selected":""}>Médecin</option>
               <option value="medecin_adjoint" ${grade==="medecin_adjoint"?"selected":""}>Médecin adjoint</option>
+              <option value="chef_de_cabinet" ${grade==="chef_de_cabinet"?"selected":""}>Chef de cabinet</option>
             </select>`;
-        const gradeAction=isChef?"":`<button class="btn secondary save-user-grade-btn" data-id="${esc(u.id)}">Enregistrer le grade</button>`;
+        const gradeAction=isSelfChef?"":`<button class="btn secondary save-user-grade-btn" data-id="${esc(u.id)}">Enregistrer le grade</button>`;
         const deleteAction=self?"":`<button class="btn danger delete-user-btn" data-id="${esc(u.id)}" data-name="${esc(u.display_name||u.email||"ce compte")}">Supprimer le compte</button>`;
 
         return `<tr data-user-id="${esc(u.id)}">
