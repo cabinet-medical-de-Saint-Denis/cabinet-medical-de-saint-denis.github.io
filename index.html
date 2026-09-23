@@ -4271,7 +4271,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const name=$("newIngredientName").value.trim(),price=Math.max(0,num($("newIngredientPrice").value));
     if(!name){toast("Indique le nom du nouvel ingrédient.");return;}
     const existing=state.resources.find(r=>r.name.trim().toLowerCase()===name.toLowerCase());
-    if(existing?.active!==false){toast("Cette ressource existe déjà.");return;}
+    if(existing && existing.active!==false){toast("Cette ressource existe déjà.");return;}
     try{
       let error;
       if(existing){
