@@ -550,7 +550,7 @@
 
 /* Carnet de consultations — 1889 */
 /* Palette Saint-Denis : cuir bleu nuit/noir, pages blanc cassé, dorures conservées. */
-#consultations{--book-cover:url("./assets/carnet-saint-denis-exact.webp?v=1");}
+#consultations{--book-cover:url("./assets/carnet-rhodes-original.webp?v=3");}
 #consultations [hidden]{display:none!important}
 .book-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .book-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px}
@@ -601,21 +601,77 @@
   box-shadow:inset 0 0 26px rgba(8,28,48,.22);
 }
 .book-cover > *{position:relative;z-index:1}
-/* couverture Saint-Denis exacte */
+/* couverture Saint-Denis : base Rhodes valide, recolorée bleu nuit */
 .book-cover{
   display:block;
   position:relative;
   width:min(100%,560px);
-  aspect-ratio:3/4;
+  aspect-ratio:2/3;
   margin:auto;
-  background:var(--book-cover) center/100% 100% no-repeat;
   border:0;
   border-radius:8px;
   overflow:hidden;
+  isolation:isolate;
+  background:var(--book-cover) center/100% 100% no-repeat;
   box-shadow:12px 18px 35px #0009;
+  color:#f2c96f;
 }
-.book-cover::before,.book-cover::after{content:none!important;display:none!important}
-.book-cover-title,.book-cover-open{display:none!important}
+.book-cover::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  pointer-events:none;
+  background:#063663;
+  mix-blend-mode:color;
+  opacity:.94;
+}
+.book-cover::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:var(--book-cover) center/100% 100% no-repeat;
+  mix-blend-mode:screen;
+  opacity:.68;
+  filter:contrast(1.35) brightness(1.12) saturate(.82);
+}
+.book-cover-title,
+.book-cover-open{
+  display:block!important;
+  position:absolute;
+  z-index:3!important;
+  color:#f2c96f;
+  text-shadow:0 2px 3px #000,0 0 8px rgba(0,0,0,.85);
+}
+.book-cover-title{
+  top:39%;
+  left:18%;
+  right:10%;
+  text-align:center;
+  line-height:1.28;
+}
+.book-cover-title small{
+  font-size:clamp(12px,1.5vw,19px);
+  letter-spacing:2.5px;
+  text-transform:uppercase;
+}
+.book-cover-title strong{
+  display:block;
+  font-size:clamp(27px,3vw,44px);
+  font-weight:normal;
+  margin:24px 0 20px;
+}
+.book-cover-title em{font-size:20px}
+.book-cover-open{
+  bottom:13.2%;
+  left:20%;
+  right:12%;
+  text-align:center;
+  font-size:13px;
+  letter-spacing:1.5px;
+}
 
 .book-paper{background:radial-gradient(ellipse at 80% 10%,rgba(255,255,255,.72),transparent 60%),linear-gradient(90deg,#71869a 0,#aab8c4 2%,#e6e2d8 6%,#f4f1e8 45%,#ded8ca 100%);color:#101a28;padding:30px clamp(22px,5vw,64px);border:1px solid #6d8aa4;border-radius:3px 9px 9px 3px;box-shadow:3px 3px 0 #aab8c4,6px 6px 0 #536b82,15px 22px 40px #0007;min-height:850px;position:relative}
 .book-paper:before{content:"";position:absolute;inset:12px;border:1px solid rgba(180,139,67,.58);pointer-events:none;box-shadow:inset 0 0 0 1px rgba(226,192,122,.10)}
