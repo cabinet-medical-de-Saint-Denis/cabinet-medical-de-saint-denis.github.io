@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1080" viewBox="0 0 720 1080">
+  <defs>
+    <filter id="saintDenis" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <!-- Recolore le cuir brun de Rhodes en bleu nuit en conservant le relief. -->
+      <feColorMatrix in="SourceGraphic" result="blueBase" type="matrix"
+        values="
+          0.025 0.050 0.025 0 0.010
+          0.095 0.190 0.095 0 0.025
+          0.188 0.375 0.188 0 0.055
+          0     0     0     1 0"/>
+      <!-- Isole les dorures claires et chaudes afin de les conserver telles quelles. -->
+      <feColorMatrix in="SourceGraphic" result="goldMaskRaw" type="matrix"
+        values="
+          0 0 0 0 0
+          0 0 0 0 0
+          0 0 0 0 0
+          1.4 0.8 -0.8 0 -0.55"/>
+      <feComponentTransfer in="goldMaskRaw" result="goldMask">
+        <feFuncA type="linear" slope="3.2" intercept="0"/>
+      </feComponentTransfer>
+      <feComposite in="SourceGraphic" in2="goldMask" operator="in" result="goldDetails"/>
+      <feComposite in="goldDetails" in2="blueBase" operator="over"/>
+    </filter>
+  </defs>
+  <image href="carnet-rhodes-original.webp" width="720" height="1080" preserveAspectRatio="none" filter="url(#saintDenis)"/>
+</svg>
