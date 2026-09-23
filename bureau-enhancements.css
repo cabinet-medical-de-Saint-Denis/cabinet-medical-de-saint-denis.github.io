@@ -120,7 +120,7 @@
   height:120px;
   object-fit:cover;
 }
-#bureau .bureau-gif-item:hover{outline:2px solid rgba(199,156,84,.75)}
+#bureau .bureau-gif-item:hover{outline:2px solid rgba(91,134,173,.75)}
 #bureau .bureau-gif-state{
   grid-column:1/-1;
   padding:28px 12px;
