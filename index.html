@@ -1151,7 +1151,7 @@
     <button id="organizeNavigation" class="btn secondary admin-only" type="button">↕ Organiser le menu</button>
 
     <div class="telegram">
-      <small id="telegramOwnerName">JOHN MYERS</small>
+      <small id="telegramOwnerName"></small>
       <strong id="telegramPlaque">RH1959</strong>
     </div>
     <div class="user-box">
@@ -1760,6 +1760,7 @@
           <h3 class="section-title">Identité du cabinet</h3>
           <div class="card-body">
             <div class="field"><label>Nom du cabinet</label><input id="settingName"></div>
+            <div class="field" style="margin-top:14px"><label for="settingOwnerName">Nom sur le panneau blanc</label><input id="settingOwnerName" maxlength="80" placeholder="Nom du responsable"></div>
             <div class="form-grid" style="margin-top:14px">
               <div class="field"><label>Ville / région</label><input id="settingPlace"></div>
               <div class="field"><label>Télégramme</label><input id="settingTelegram"></div>
@@ -2644,7 +2645,7 @@ $('navigationSave').addEventListener('click',async()=>{
       for(const r of [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements]) if(r.error) throw r.error;
 
       const c=cab.data||{};
-      state.settings={name:c.cabinet_name||defaults.settings.name,place:c.place||defaults.settings.place,telegram:c.telegram||"",giphyApiKey:c.giphy_api_key||""};
+      state.settings={ownerName:c.telegram_owner_name??"John Myers",name:c.cabinet_name||defaults.settings.name,place:c.place||defaults.settings.place,telegram:c.telegram||"",giphyApiKey:c.giphy_api_key||""};
       state.cash=num(c.cash_balance);
       state.resources=(resources.data||[]).map(r=>({
         id:r.id,name:r.name,stock:num(r.stock),unitPrice:num(r.unit_price),kind:r.category==="ingredient"?"ingredient":"soin",active:r.active!==false
@@ -3726,8 +3727,8 @@ $('navigationSave').addEventListener('click',async()=>{
   }
 
   function renderSettings(){
-    $("settingName").value=state.settings.name||"";$("settingPlace").value=state.settings.place||"";$("settingTelegram").value=state.settings.telegram||"";$("settingCash").value=num(state.cash).toFixed(2);$("telegramPlaque").textContent=state.settings.telegram||"—";
-    if($("telegramOwnerName"))$("telegramOwnerName").textContent="JOHN MYERS";
+    $("settingOwnerName").value=state.settings.ownerName??"John Myers";$("settingName").value=state.settings.name||"";$("settingPlace").value=state.settings.place||"";$("settingTelegram").value=state.settings.telegram||"";$("settingCash").value=num(state.cash).toFixed(2);$("telegramPlaque").textContent=state.settings.telegram||"—";
+    if($("telegramOwnerName"))$("telegramOwnerName").textContent=(state.settings.ownerName??"John Myers").toLocaleUpperCase("fr-FR");
     document.querySelector(".brand h1").innerHTML=esc(state.settings.name).replace(/\sde\sSaint-Denis/i,"<br>de Saint-Denis");
     document.querySelector(".brand p").textContent=state.settings.place;
   }
@@ -4473,8 +4474,9 @@ $('navigationSave').addEventListener('click',async()=>{
   ["historySearch","historyType","historyMonth"].forEach(id=>$(id).addEventListener(id==="historySearch"?"input":"change",renderHistory));
   $("clearHistoryFilters").addEventListener("click",()=>{$("historySearch").value="";$("historyType").value="";$("historyMonth").value="";renderHistory();});
   $("saveSettings").addEventListener("click",async()=>{
-    const payload={cabinet_name:$("settingName").value.trim()||defaults.settings.name,place:$("settingPlace").value.trim()||defaults.settings.place,telegram:$("settingTelegram").value.trim(),cash_balance:Math.max(0,num($("settingCash").value))};
-    try{const {error}=await db.from("cabinet_state").update(payload).eq("id",1);if(error)throw error;await loadRemoteState();toast("Paramètres enregistrés en ligne.");}catch(err){dbError(err);}
+    if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
+    const payload={telegram_owner_name:$("settingOwnerName").value.trim(),cabinet_name:$("settingName").value.trim()||defaults.settings.name,place:$("settingPlace").value.trim()||defaults.settings.place,telegram:$("settingTelegram").value.trim(),cash_balance:Math.max(0,num($("settingCash").value))};
+    try{const {error}=await db.from("cabinet_state").update(payload).eq("id",1).select("id").single();if(error)throw error;await loadRemoteState();toast("Paramètres enregistrés en ligne.");}catch(err){dbError(err);}
   });
   $("exportData").addEventListener("click",()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cabinet-saint-denis-sauvegarde-"+todayISO()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
   $("importData").addEventListener("change",e=>{e.target.value="";toast("L'import direct d'une ancienne sauvegarde est désactivé sur la version en ligne. Garde le fichier : je peux le convertir si besoin.");});
