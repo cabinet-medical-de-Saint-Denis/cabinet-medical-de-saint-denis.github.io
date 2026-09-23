@@ -1,0 +1,158 @@
+/* Compléments visuels du salon LE BUREAU */
+#bureau .bureau-message-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:2px 8px!important;
+  align-items:start!important;
+  margin-bottom:5px!important;
+}
+#bureau .bureau-author{
+  display:block!important;
+  grid-column:1;
+  grid-row:1;
+  font-weight:800;
+}
+#bureau .bureau-grade{
+  display:block!important;
+  grid-column:1 / -1;
+  grid-row:2;
+  margin-top:0;
+  font-size:9px!important;
+}
+#bureau .bureau-time{
+  grid-column:2;
+  grid-row:1;
+  margin-left:auto;
+}
+#bureau .bureau-typing{
+  min-height:22px;
+  padding:3px 14px;
+  color:#a99470;
+  font-size:11px;
+  background:rgba(0,0,0,.10);
+}
+#bureau .bureau-typing:empty{display:none}
+#bureau .bureau-typing-dots{
+  display:inline-flex;
+  gap:2px;
+  margin-left:4px;
+  vertical-align:middle;
+}
+#bureau .bureau-typing-dots i{
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:#bda77e;
+  display:block;
+  animation:bureauTypingDot 1.1s infinite ease-in-out;
+}
+#bureau .bureau-typing-dots i:nth-child(2){animation-delay:.16s}
+#bureau .bureau-typing-dots i:nth-child(3){animation-delay:.32s}
+@keyframes bureauTypingDot{
+  0%,60%,100%{opacity:.35;transform:translateY(0)}
+  30%{opacity:1;transform:translateY(-2px)}
+}
+#bureau .bureau-composer{position:relative!important}
+#bureau .bureau-compose-row{
+  grid-template-columns:auto auto minmax(0,1fr) auto!important;
+}
+#bureau .bureau-gif-btn{
+  height:42px;
+  min-width:52px;
+  padding:0 10px;
+  font-weight:800;
+  letter-spacing:.5px;
+}
+#bureau .bureau-gif-picker{
+  display:none;
+  position:absolute;
+  left:12px;
+  bottom:82px;
+  width:min(520px,calc(100% - 24px));
+  max-height:490px;
+  z-index:30;
+  border:1px solid rgba(199,156,84,.45);
+  background:#17120f;
+  box-shadow:0 16px 46px rgba(0,0,0,.55);
+  border-radius:7px;
+  overflow:hidden;
+}
+#bureau .bureau-gif-picker.show{display:block}
+#bureau .bureau-gif-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+  padding:10px;
+  border-bottom:1px solid rgba(199,156,84,.20);
+}
+#bureau .bureau-gif-top input{height:38px}
+#bureau .bureau-gif-close{
+  width:38px;
+  height:38px;
+  border:1px solid rgba(199,156,84,.25);
+  background:rgba(255,255,255,.03);
+  color:#cdbb98;
+  cursor:pointer;
+  border-radius:4px;
+  font-size:18px;
+}
+#bureau .bureau-gif-results{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  padding:8px;
+  max-height:370px;
+  overflow:auto;
+  background:rgba(0,0,0,.14);
+}
+#bureau .bureau-gif-item{
+  border:0;
+  padding:0;
+  background:#0c0a08;
+  cursor:pointer;
+  min-height:90px;
+  overflow:hidden;
+  border-radius:4px;
+}
+#bureau .bureau-gif-item img{
+  display:block;
+  width:100%;
+  height:120px;
+  object-fit:cover;
+}
+#bureau .bureau-gif-item:hover{outline:2px solid rgba(199,156,84,.75)}
+#bureau .bureau-gif-state{
+  grid-column:1/-1;
+  padding:28px 12px;
+  text-align:center;
+  color:#9e8967;
+  line-height:1.5;
+}
+#bureau .bureau-gif-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 10px;
+  border-top:1px solid rgba(199,156,84,.20);
+  font-size:10px;
+  color:#8d7a5f;
+}
+#bureau .bureau-giphy-brand{
+  font-weight:900;
+  letter-spacing:.7px;
+  color:#e8d8b8;
+  text-decoration:none;
+}
+#bureau .bureau-giphy-mark{
+  margin-top:5px;
+  font-size:9px;
+  color:#7f705b;
+}
+@media(max-width:700px){
+  #bureau .bureau-compose-row{grid-template-columns:auto auto minmax(0,1fr)!important}
+  #bureau .bureau-send{grid-column:1/-1;width:100%}
+  #bureau .bureau-gif-picker{bottom:126px}
+  #bureau .bureau-gif-results{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #bureau .bureau-gif-item img{height:110px}
+}
