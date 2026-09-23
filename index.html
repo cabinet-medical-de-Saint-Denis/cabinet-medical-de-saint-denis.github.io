@@ -1099,7 +1099,7 @@
 <div class="auth-gate hidden" id="accessGate">
   <div class="auth-card access-card">
     <div class="seal">⚕</div>
-    <h2>Accès au Cabinet de Rhodes</h2>
+    <h2>Accès au Cabinet de Saint-Denis</h2>
     <p id="accessLead">Vérification de ton autorisation…</p>
     <div class="access-status" id="accessStatusBox">Connexion au registre…</div>
     <div class="auth-actions">
@@ -1379,7 +1379,7 @@
         <div class="pharmacy-glass-ledger">
           <div class="pharmacy-glass-ledger-head">
             <div>
-              <span>PHARMACIE · RHODES · 1889</span>
+              <span>PHARMACIE · SAINT-DENIS · 1889</span>
               <strong>Registre de l’armoire</strong>
               <small>Réapprovisionnement à gauche · comptage réel à droite</small>
             </div>
@@ -1469,7 +1469,7 @@
         <div class="debt-board">
           <div class="debt-board-header">
             <div>
-              <div class="debt-kicker">CABINET MÉDICAL DE RHODES · REGISTRE 1889</div>
+              <div class="debt-kicker">CABINET MÉDICAL DE SAINT-DENIS · REGISTRE 1889</div>
               <h3>ARDOISE DES IMPAYÉS</h3>
               <p>Les dettes de plus de vingt-quatre heures sont automatiquement signalées en rouge.</p>
             </div>
@@ -1763,7 +1763,7 @@
               <label class="btn ghost" style="display:inline-flex;align-items:center">Importer une sauvegarde<input type="file" id="importData" accept=".json" hidden></label>
             </div>
             <div class="warning">
-              Cette version est reliée à la base en ligne du Cabinet-Rhodes. Seuls les comptes autorisés par l’administrateur peuvent accéder aux données.
+              Cette version est reliée à la base en ligne du Cabinet de Saint-Denis. Seuls les comptes autorisés par l’administrateur peuvent accéder aux données.
             </div>
             <hr class="sep">
             <button class="btn danger admin-only" id="resetAll">Réinitialiser toutes les données</button>
@@ -2157,9 +2157,8 @@
       .reduce((a,h)=>a+Math.max(0,-num(h.cashDelta)),0);
   }
 
-// Cabinet de Rhodes — chaque utilisateur possède son propre carnet, créé depuis le modèle de base.
-const bookSupervisorId='d5deb745-1298-4625-8c1d-6aa0f5ebc9f7';
-const isBookSupervisor=()=>currentUser?.id===bookSupervisorId && isAdmin;
+// Cabinet de Saint-Denis — chaque utilisateur possède son propre carnet, créé depuis le modèle de base.
+const isBookSupervisor=()=>isAdmin;
 const canEditBook=()=>!!currentUser && currentProfile?.access_status==="approved";
 let bookCategories=[],bookReports=[],bookPage=-1,bookBusy=false,bookLoaded=false;
 const bookOath=[
@@ -3714,7 +3713,7 @@ $('navigationSave').addEventListener('click',async()=>{
   function renderSettings(){
     $("settingName").value=state.settings.name||"";$("settingPlace").value=state.settings.place||"";$("settingTelegram").value=state.settings.telegram||"";$("settingCash").value=num(state.cash).toFixed(2);$("telegramPlaque").textContent=state.settings.telegram||"—";
     if($("telegramOwnerName"))$("telegramOwnerName").textContent="JOHN MYERS";
-    document.querySelector(".brand h1").innerHTML=esc(state.settings.name).replace(/\sde\sSaint-Denis/i,"<br>de Rhodes");
+    document.querySelector(".brand h1").innerHTML=esc(state.settings.name).replace(/\sde\sSaint-Denis/i,"<br>de Saint-Denis");
     document.querySelector(".brand p").textContent=state.settings.place;
   }
   function renderAll(){loadNavigation();renderDashboard();renderInventory();fillMovementResources();renderCraft();renderRecipes();fillRemoveIngredientSelect();renderSuppliers();renderHistory();renderSettings();}
