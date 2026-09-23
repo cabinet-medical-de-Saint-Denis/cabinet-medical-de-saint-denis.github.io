@@ -550,7 +550,7 @@
 
 /* Carnet de consultations — 1889 */
 /* Palette Saint-Denis : cuir bleu nuit/noir, pages blanc cassé, dorures conservées. */
-#consultations{--book-cover:url("./assets/carnet-saint-denis-v2.svg?v=6");}
+#consultations{--book-cover:url("./assets/carnet-saint-denis-exact.webp?v=1");}
 #consultations [hidden]{display:none!important}
 .book-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .book-layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px}
@@ -601,134 +601,21 @@
   box-shadow:inset 0 0 26px rgba(8,28,48,.22);
 }
 .book-cover > *{position:relative;z-index:1}
-/* couverture Saint-Denis : carnet Rhodes recoloré sans assombrir les dorures */
+/* couverture Saint-Denis exacte */
 .book-cover{
   display:block;
   position:relative;
   width:min(100%,560px);
-  aspect-ratio:2/3;
+  aspect-ratio:3/4;
   margin:auto;
+  background:var(--book-cover) center/100% 100% no-repeat;
   border:0;
   border-radius:8px;
   overflow:hidden;
-  isolation:isolate;
-  background:#061426;
   box-shadow:12px 18px 35px #0009;
-  color:#f0c76e;
-}
-.book-cover::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:0;
-  pointer-events:none;
-  background-image:
-    linear-gradient(rgba(3,39,77,.88),rgba(3,39,77,.88)),
-    var(--book-cover);
-  background-size:100% 100%,100% 100%;
-  background-position:center,center;
-  background-repeat:no-repeat,no-repeat;
-  background-blend-mode:color,normal;
-}
-.book-cover::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:1;
-  pointer-events:none;
-  background:var(--book-cover) center/100% 100% no-repeat;
-  mix-blend-mode:screen;
-  opacity:.48;
-  filter:contrast(1.45) brightness(1.12) saturate(.8);
-}
-.book-cover-title,
-.book-cover-open{z-index:2!important}
-.book-cover-title{
-  display:block!important;
-  position:absolute;
-  top:40%;
-  left:20%;
-  right:12%;
-  text-align:center;
-  text-shadow:1px 2px 3px #000,0 0 7px rgba(0,0,0,.8);
-  line-height:1.3;
-  color:#efc46a;
-}
-.book-cover-title small{
-  font-size:clamp(12px,1.5vw,19px);
-  letter-spacing:3px;
-  text-transform:uppercase;
-}
-.book-cover-title strong{
-  display:block;
-  font-size:clamp(24px,3vw,43px);
-  font-weight:normal;
-  margin:22px 0;
-}
-.book-cover-title em{font-size:20px}
-.book-cover-open{
-  display:block!important;
-  position:absolute;
-  bottom:14%;
-  left:22%;
-  right:15%;
-  font-size:13px;
-  letter-spacing:2px;
-  color:#efc46a;
-  text-shadow:1px 2px 3px #000,0 0 6px rgba(0,0,0,.75);
-}
-
-/* couverture Saint-Denis finale depuis le carnet Rhodes */
-.book-cover{
-  display:block!important;
-  width:min(100%,560px)!important;
-  aspect-ratio:3/4!important;
-  margin:auto!important;
-  background-image:var(--book-cover)!important;
-  background-size:100% 100%!important;
-  background-repeat:no-repeat!important;
-  background-position:center!important;
-  background-color:transparent!important;
-  border:0!important;
-  border-radius:8px!important;
-  overflow:hidden!important;
-  box-shadow:12px 18px 35px #0009!important;
 }
 .book-cover::before,.book-cover::after{content:none!important;display:none!important}
-.book-cover-title{
-  display:block!important;
-  position:absolute!important;
-  top:38%!important;
-  left:18%!important;
-  right:10%!important;
-  text-align:center!important;
-  text-shadow:1px 2px 2px #000!important;
-  line-height:1.3!important;
-  color:#f1c977!important;
-}
-.book-cover-title small{
-  font-size:clamp(12px,1.5vw,19px)!important;
-  letter-spacing:3px!important;
-  text-transform:uppercase!important;
-}
-.book-cover-title strong{
-  display:block!important;
-  font-size:clamp(24px,3vw,43px)!important;
-  font-weight:normal!important;
-  margin:22px 0!important;
-}
-.book-cover-title em{font-size:20px!important}
-.book-cover-open{
-  display:block!important;
-  position:absolute!important;
-  bottom:13%!important;
-  left:20%!important;
-  right:13%!important;
-  font-size:13px!important;
-  letter-spacing:2px!important;
-  color:#f1c977!important;
-  text-shadow:1px 2px 2px #000!important;
-}
+.book-cover-title,.book-cover-open{display:none!important}
 
 .book-paper{background:radial-gradient(ellipse at 80% 10%,rgba(255,255,255,.72),transparent 60%),linear-gradient(90deg,#71869a 0,#aab8c4 2%,#e6e2d8 6%,#f4f1e8 45%,#ded8ca 100%);color:#101a28;padding:30px clamp(22px,5vw,64px);border:1px solid #6d8aa4;border-radius:3px 9px 9px 3px;box-shadow:3px 3px 0 #aab8c4,6px 6px 0 #536b82,15px 22px 40px #0007;min-height:850px;position:relative}
 .book-paper:before{content:"";position:absolute;inset:12px;border:1px solid rgba(180,139,67,.58);pointer-events:none;box-shadow:inset 0 0 0 1px rgba(226,192,122,.10)}
