@@ -1098,6 +1098,7 @@
 .supplier-place-heading .supplier-add-ingredient{width:34px;height:34px;min-width:34px;padding:0;font-size:25px;line-height:1;flex-shrink:0}
 .supplier-place-heading .supplier-delete-place{height:34px;padding:0 10px;font-size:11px;line-height:1;flex-shrink:0}
 .supplier-ingredient-cell{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.supplier-ingredient-cell span{text-transform:uppercase}
 .supplier-delete-ingredient{flex:0 0 auto;width:30px;height:30px;min-width:30px;padding:0;font-size:18px;line-height:1}
 .supplier-add-dialog{width:min(520px,92vw);max-height:90vh;overflow:auto;background:var(--panel,#171b20);color:inherit;border:1px solid currentColor;border-radius:8px;padding:24px}
 .supplier-add-dialog::backdrop{background:#000a}
@@ -2807,7 +2808,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const current=select.value;
     const ingredients=ingredientResources();
     select.innerHTML=ingredients.length
-      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")
+      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")
       : '<option value="">Aucun ingrédient</option>';
     if(ingredients.some(r=>r.id===current))select.value=current;
     fillOrderSuppliers();
@@ -2943,18 +2944,18 @@ $('navigationSave').addEventListener('click',async()=>{
     $("cashBig").textContent=money(state.cash);
     $("dashMonthName").textContent=new Intl.DateTimeFormat("fr-FR",{month:"long",year:"numeric"}).format(new Date());
     const low=[...activeResources()].sort((a,b)=>num(a.stock)-num(b.stock)).slice(0,6);
-    $("lowStockPanel").innerHTML=low.length?low.map(r=>`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div><strong style="color:#dce7f0">${esc(r.name)}</strong><div class="hint">${r.kind==="soin"?"Soin fabriqué":"Ingrédient"}</div></div><span class="pill ${num(r.stock)<=5?"red":"gold"}">${num(r.stock)} en stock</span></div>`).join(""):`<div class="empty">Aucune ressource.</div>`;
+    $("lowStockPanel").innerHTML=low.length?low.map(r=>`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div><strong style="color:#dce7f0">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</strong><div class="hint">${r.kind==="soin"?"Soin fabriqué":"Ingrédient"}</div></div><span class="pill ${num(r.stock)<=5?"red":"gold"}">${num(r.stock)} en stock</span></div>`).join(""):`<div class="empty">Aucune ressource.</div>`;
     const recent=[...state.history].reverse().slice(0,5);
     $("recentPanel").innerHTML=recent.length?recent.map(h=>`<div style="padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div style="display:flex;justify-content:space-between;gap:10px"><strong style="color:#dce7f0">${esc(typeLabel(h.type))}</strong><span class="muted">${esc(h.date)}</span></div><div class="hint">${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"Ressource":h.note||"Caisse")}${h.qty?` · ${h.qty}`:""}</div></div>`).join(""):`<div class="empty">Aucun mouvement enregistré.</div>`;
   }
   function renderInventory(){
-    $("inventoryBody").innerHTML=activeResources().map(r=>`<tr class="${num(r.stock)<=0?"stock-low":""}" data-id="${esc(r.id)}"><td class="resource-name">${esc(r.name)}</td><td><input class="inv-stock" type="number" min="0" step="0.01" value="${num(r.stock)}"></td><td><div class="currency-input"><input class="inv-price" type="number" min="0" step="0.01" value="${num(r.unitPrice).toFixed(2)}"></div></td><td class="money">${money(num(r.stock)*num(r.unitPrice))}</td><td>${num(r.stock)<=0?'<span class="pill red">Épuisé</span>':num(r.stock)<=5?'<span class="pill red">Faible</span>':'<span class="pill green">Disponible</span>'}</td></tr>`).join("");
+    $("inventoryBody").innerHTML=activeResources().map(r=>`<tr class="${num(r.stock)<=0?"stock-low":""}" data-id="${esc(r.id)}"><td class="resource-name">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</td><td><input class="inv-stock" type="number" min="0" step="0.01" value="${num(r.stock)}"></td><td><div class="currency-input"><input class="inv-price" type="number" min="0" step="0.01" value="${num(r.unitPrice).toFixed(2)}"></div></td><td class="money">${money(num(r.stock)*num(r.unitPrice))}</td><td>${num(r.stock)<=0?'<span class="pill red">Épuisé</span>':num(r.stock)<=5?'<span class="pill red">Faible</span>':'<span class="pill green">Disponible</span>'}</td></tr>`).join("");
     $("inventoryCount").textContent=activeResources().length+" ressources";
     $("inventoryValue").textContent="Valeur : "+money(stockValue());
   }
   function fillMovementResources(){
     const current=$("mvResource").value;
-    $("mvResource").innerHTML=activeResources().map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")+
+    $("mvResource").innerHTML=activeResources().map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+
       '<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>';
     if(activeResources().some(r=>r.id===current)||current==="__OTHER__")$("mvResource").value=current;
     else if(activeResources()[0])$("mvResource").value=activeResources()[0].id;
@@ -3041,13 +3042,13 @@ $('navigationSave').addEventListener('click',async()=>{
     if(!select)return;
     const ingredients=ingredientResources();
     select.innerHTML=ingredients.length
-      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")
+      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")
       : '<option value="">Aucun ingrédient</option>';
     $("removeIngredient").disabled=!ingredients.length;
   }
   function renderRecipes(){
     const ingredients=ingredientResources();
-    $("recipeHead").innerHTML="<tr><th>Recette</th><th>Coût fabrication</th>"+ingredients.map(r=>`<th>${esc(r.name)}</th>`).join("")+"<th>Action</th></tr>";
+    $("recipeHead").innerHTML="<tr><th>Recette</th><th>Coût fabrication</th>"+ingredients.map(r=>`<th>${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</th>`).join("")+"<th>Action</th></tr>";
     $("recipeBody").innerHTML=state.recipes.length?state.recipes.map(rc=>{
       const cost=ingredients.reduce((total,r)=>total+num(rc.ingredients[r.id])*num(r.unitPrice),0);
       return `<tr data-product="${esc(rc.productId)}" data-recipe="${esc(rc.dbId)}"><td><input class="recipe-name" value="${esc(res(rc.productId)?.name||rc.productId)}" aria-label="Nom de la recette"></td><td class="money recipe-cost"><strong>${money(cost)}</strong></td>${ingredients.map(r=>`<td><input type="number" min="0" step="1" data-ing="${esc(r.id)}" value="${num(rc.ingredients[r.id])}"></td>`).join("")}<td><button class="btn danger delete-recipe" type="button" data-product="${esc(rc.productId)}">Retirer</button></td></tr>`;
@@ -4358,7 +4359,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const atPlace=state.suppliers.filter(s=>(s.place||"").trim()===(place||""));
     const available=ingredientResources().filter(r=>isNew||!atPlace.some(s=>s.resourceId===r.id));
     $("supplierAddResource").innerHTML=(isNew?'<option value="">Ajouter les ingrédients ensuite</option>':'<option value="">Choisir un ingrédient…</option>')+
-      available.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")+(isAdmin?'<option value="__new__">＋ Nouvel ingrédient…</option>':"");
+      available.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+(isAdmin?'<option value="__new__">＋ Nouvel ingrédient…</option>':"");
     $("supplierNewResourceField").hidden=true;$("supplierNewResourceName").value="";$("supplierNewResourceName").required=false;
     const contact=atPlace.find(s=>s.name||s.telegram);
     $("supplierAddName").value=isNew?"":contact?.name||"";
@@ -4431,7 +4432,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const place=$("supplierAddPlace").value.trim();
     let resourceId=$("supplierAddResource").value||null;
     const createResource=resourceId==="__new__";
-    const resourceName=$("supplierNewResourceName").value.trim();
+    const resourceName=$("supplierNewResourceName").value.trim().toLocaleUpperCase("fr-FR");
     const fail=message=>{$("supplierAddError").textContent=message;};
     if(!place){fail("Indique le nom du lieu.");return;}
     if(place.toLocaleLowerCase("fr-FR")==="lieu non renseigné"){fail("Choisis un nom de lieu précis.");return;}
