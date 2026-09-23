@@ -1094,6 +1094,14 @@
  .sidebar #organizeNavigation{min-height:24px;padding:4px}
 }
 
+
+.supplier-place-heading .supplier-add-ingredient{width:34px;height:34px;min-width:34px;padding:0;font-size:25px;line-height:1;flex-shrink:0}
+.supplier-add-dialog{width:min(520px,92vw);max-height:90vh;overflow:auto;background:var(--panel,#171b20);color:inherit;border:1px solid currentColor;border-radius:8px;padding:24px}
+.supplier-add-dialog::backdrop{background:#000a}
+.supplier-add-dialog .field{margin-top:14px}
+.supplier-add-dialog input,.supplier-add-dialog select{width:100%}
+#supplierAddError{color:#ffb5a8;white-space:pre-wrap}
+
 </style>
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
@@ -1657,7 +1665,7 @@
               <tbody id="suppliersBody"></tbody>
             </table>
           </div>
-          <div class="form-actions"><button class="btn" id="saveSuppliers">Enregistrer les fournisseurs</button></div>
+          <div class="form-actions"><button class="btn" id="saveSuppliers">Enregistrer les fournisseurs</button><button class="btn secondary" type="button" id="addSupplierPlace">＋ Ajouter un lieu de fournisseurs</button></div>
           <p class="hint">Les fournisseurs sont regroupés par lieu. Les prix, les noms et les télégrammes restent modifiables directement dans ce tableau.</p>
         </div>
       </div>
@@ -1835,6 +1843,21 @@
 </div>
 
 <dialog id="navigationDialog" class="book-dialog" aria-labelledby="navigationTitle"><h3 id="navigationTitle">Organiser le menu</h3><p>Déplace les rubriques avec les flèches. L’ordre enregistré s’applique à tous les utilisateurs.</p><ol id="navigationList"></ol><div class="book-toolbar"><button id="navigationSave" class="btn good" type="button">Enregistrer l’ordre</button><button id="navigationDefault" class="btn secondary" type="button">Ordre initial</button><button id="navigationCancel" class="btn secondary" type="button">Annuler</button></div></dialog>
+
+<dialog id="supplierAddDialog" class="supplier-add-dialog">
+  <form id="supplierAddForm">
+    <h3 id="supplierAddTitle">Ajouter un ingrédient</h3>
+    <div class="field"><label for="supplierAddPlace">Lieu du fournisseur</label><input id="supplierAddPlace" maxlength="120" required></div>
+    <div class="field"><label for="supplierAddResource">Ingrédient</label><select id="supplierAddResource"></select></div>
+    <div class="field" id="supplierNewResourceField" hidden><label for="supplierNewResourceName">Nom du nouvel ingrédient</label><input id="supplierNewResourceName" maxlength="120"></div>
+    <div class="field"><label for="supplierAddPrice">Prix unitaire ($)</label><input id="supplierAddPrice" type="number" min="0" step="0.01" value="0"></div>
+    <div class="field"><label for="supplierAddName">Nom du fournisseur</label><input id="supplierAddName" maxlength="120"></div>
+    <div class="field"><label for="supplierAddTelegram">Télégramme</label><input id="supplierAddTelegram" maxlength="60"></div>
+    <p id="supplierAddError" role="alert"></p>
+    <div class="form-actions"><button type="button" class="btn secondary" id="supplierAddCancel">Annuler</button><button class="btn" id="supplierAddConfirm" type="submit">Ajouter</button></div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3030,32 +3053,26 @@ $('navigationSave').addEventListener('click',async()=>{
   function renderSuppliers(){
     const uniqueProducts=list=>[...new Set(list.map(s=>res(s.resourceId)?.name).filter(Boolean))]
       .sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
-    const farmProducts=uniqueProducts(state.suppliers.filter(s=>(s.place||"").startsWith("Ferme de ")));
-    const ranchProducts=uniqueProducts(state.suppliers.filter(s=>(s.place||"").startsWith("Ranch ")));
-    const greaseName=ingredientResources().find(r=>r.name.trim().toLocaleUpperCase("fr-FR")==="GRAISSE")?.name||"GRAISSE";
-    const fixedPlaces=[...SUPPLIER_PLACES].sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
-    const hasUnassigned=state.suppliers.some(s=>!SUPPLIER_PLACES.includes((s.place||"").trim()));
+    const fixedPlaces=supplierPlaceNames();
+    const hasUnassigned=state.suppliers.some(s=>s.resourceId&&!(s.place||"").trim());
     const places=hasUnassigned?[...fixedPlaces,"Lieu non renseigné"]:fixedPlaces;
 
     $("suppliersBody").innerHTML=places.map(place=>{
-      const atPlace=state.suppliers
+      const atPlace=state.suppliers.filter(s=>s.resourceId)
         .filter(s=>place==="Lieu non renseigné"
-          ? !SUPPLIER_PLACES.includes((s.place||"").trim())
+          ? !(s.place||"").trim()
           : (s.place||"").trim()===place)
         .sort((a,b)=>String(res(a.resourceId)?.name||"").localeCompare(String(res(b.resourceId)?.name||""),"fr-FR",{sensitivity:"base"}));
-      let products=uniqueProducts(atPlace);
-      if(place.startsWith("Ferme de "))products=farmProducts;
-      else if(place.startsWith("Ranch "))products=ranchProducts;
-      else if(place==="Chasse & Pêche de Window Rock")products=[greaseName];
+      const products=uniqueProducts(atPlace);
 
       const productSummary=products.length
         ? products.map(name=>`<span class="supplier-product">${esc(name)}</span>`).join("")
         : '<span class="muted">Aucun ingrédient renseigné</span>';
       const header=`<tr class="supplier-place-row">
-        <td colspan="5">
+        <td colspan="4">
           <div class="supplier-place-heading">
             <strong>${esc(place)}</strong>
-            <div class="supplier-place-products"><small>Produits vendus :</small>${productSummary}</div>
+            <div class="supplier-place-products"><small>Produits vendus :</small>${productSummary}${place!=="Lieu non renseigné"?`<button class="btn secondary supplier-add-ingredient" type="button" data-place="${esc(place)}" aria-label="Ajouter un ingrédient à ${esc(place)}" title="Ajouter un ingrédient">+</button>`:""}</div>
           </div>
         </td>
       </tr>`;
@@ -3067,7 +3084,7 @@ $('navigationSave').addEventListener('click',async()=>{
       const rows=atPlace.map(s=>{
         const r=res(s.resourceId);
         const savedPlace=(s.place||"").trim();
-        const rowPlace=SUPPLIER_PLACES.includes(savedPlace)?savedPlace:"";
+        const rowPlace=savedPlace;
         return `<tr data-id="${esc(s.dbId||("new-"+s.resourceId))}" data-db-id="${esc(s.dbId||"")}" data-resource-id="${esc(s.resourceId)}" data-place="${esc(rowPlace)}">
           <td class="resource-name">${esc(r?.name||s.resourceId)}</td>
           <td><div class="currency-input"><input class="sup-price" type="number" min="0" step="0.01" value="${num(s.unitPrice).toFixed(2)}"></div></td>
@@ -4310,6 +4327,115 @@ $('navigationSave').addEventListener('click',async()=>{
       catch(_e){toast("Impossible de copier automatiquement.");}
       input.setSelectionRange(value.length,value.length);
     }
+  });
+
+
+  function supplierPlaceNames(){
+    return [...new Set([...SUPPLIER_PLACES,...state.suppliers.map(s=>(s.place||"").trim()).filter(Boolean)])]
+      .sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
+  }
+  function supplierDrafts(){
+    return [...document.querySelectorAll("#suppliersBody tr[data-id]")].map(tr=>({
+      id:tr.dataset.id,values:[".sup-price",".sup-name",".sup-telegram"].map(sel=>tr.querySelector(sel).value)
+    }));
+  }
+  function restoreSupplierDrafts(drafts){
+    const rows=new Map([...document.querySelectorAll("#suppliersBody tr[data-id]")].map(tr=>[tr.dataset.id,tr]));
+    drafts.forEach(d=>{const row=rows.get(d.id);if(row)[".sup-price",".sup-name",".sup-telegram"].forEach((sel,i)=>row.querySelector(sel).value=d.values[i]);});
+  }
+  function openSupplierAdd(place){
+    const isNew=place==null;
+    const dialog=$("supplierAddDialog");
+    dialog.dataset.mode=isNew?"place":"ingredient";
+    $("supplierAddTitle").textContent=isNew?"Ajouter un lieu de fournisseurs":"Ajouter un ingrédient";
+    $("supplierAddPlace").value=place||"";
+    $("supplierAddPlace").readOnly=!isNew;
+    $("supplierAddResource").required=!isNew;
+    const atPlace=state.suppliers.filter(s=>(s.place||"").trim()===(place||""));
+    const available=ingredientResources().filter(r=>isNew||!atPlace.some(s=>s.resourceId===r.id));
+    $("supplierAddResource").innerHTML=(isNew?'<option value="">Ajouter les ingrédients ensuite</option>':'<option value="">Choisir un ingrédient…</option>')+
+      available.map(r=>`<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")+(isAdmin?'<option value="__new__">＋ Nouvel ingrédient…</option>':"");
+    $("supplierNewResourceField").hidden=true;$("supplierNewResourceName").value="";$("supplierNewResourceName").required=false;
+    const contact=atPlace.find(s=>s.name||s.telegram);
+    $("supplierAddName").value=isNew?"":contact?.name||"";
+    $("supplierAddTelegram").value=isNew?"":contact?.telegram||"";
+    $("supplierAddPrice").value="0";
+    $("supplierAddPrice").disabled=true;
+    $("supplierAddError").textContent=!isNew&&!available.length&&!isAdmin?"Tous les ingrédients du cabinet sont déjà rattachés à ce lieu.":"";
+    $("supplierAddConfirm").disabled=!isNew&&!available.length&&!isAdmin;
+    dialog.showModal();
+    (isNew?$("supplierAddPlace"):$("supplierAddResource")).focus();
+  }
+  $("suppliersBody").addEventListener("click",e=>{
+    const button=e.target.closest(".supplier-add-ingredient");
+    if(button)openSupplierAdd(button.dataset.place);
+  });
+  $("addSupplierPlace").addEventListener("click",()=>openSupplierAdd(null));
+  $("supplierAddCancel").addEventListener("click",()=>$("supplierAddDialog").close());
+  $("supplierAddResource").addEventListener("change",()=>{
+    const isNewResource=$("supplierAddResource").value==="__new__";
+    $("supplierNewResourceField").hidden=!isNewResource;
+    $("supplierNewResourceName").required=isNewResource;
+    const r=res($("supplierAddResource").value);
+    $("supplierAddPrice").disabled=!r&&!isNewResource;
+    $("supplierAddPrice").value=num(r?.unitPrice).toFixed(2);
+  });
+  $("supplierAddDialog").addEventListener("cancel",e=>{
+    if($("supplierAddDialog").dataset.saving==="1")e.preventDefault();
+  });
+  $("supplierAddForm").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const dialog=$("supplierAddDialog");
+    if(dialog.dataset.saving==="1")return;
+    const isNew=dialog.dataset.mode==="place";
+    const place=$("supplierAddPlace").value.trim();
+    let resourceId=$("supplierAddResource").value||null;
+    const createResource=resourceId==="__new__";
+    const resourceName=$("supplierNewResourceName").value.trim();
+    const fail=message=>{$("supplierAddError").textContent=message;};
+    if(!place){fail("Indique le nom du lieu.");return;}
+    if(place.toLocaleLowerCase("fr-FR")==="lieu non renseigné"){fail("Choisis un nom de lieu précis.");return;}
+    if(isNew&&supplierPlaceNames().some(p=>p.toLocaleLowerCase("fr-FR")===place.toLocaleLowerCase("fr-FR"))){fail("Ce lieu existe déjà. Utilise son bouton +.");return;}
+    if(!isNew&&!resourceId){fail("Choisis un ingrédient.");return;}
+    if(createResource&&(!isAdmin||!resourceName)){fail("Indique le nom du nouvel ingrédient (administrateur uniquement).");return;}
+    if(resourceId&&!createResource&&!ingredientResources().some(r=>r.id===resourceId)){fail("Cet ingrédient n’est plus disponible.");return;}
+    const drafts=supplierDrafts();
+    dialog.dataset.saving="1";$("supplierAddConfirm").disabled=true;$("supplierAddCancel").disabled=true;
+    try{
+      const {data:existing,error:readError}=await db.from("suppliers").select("id,resource_id").eq("active",true).eq("location",place);
+      if(readError)throw readError;
+      if(isNew&&existing.length)throw new Error("Ce lieu vient d’être créé. Ferme cette fenêtre puis actualise la liste.");
+      if(createResource){
+        const {data:resources,error:resourceError}=await db.from("resources").select("id,name,category,active");
+        if(resourceError)throw resourceError;
+        const found=resources.find(r=>r.name.trim().toLocaleLowerCase("fr-FR")===resourceName.toLocaleLowerCase("fr-FR"));
+        if(found&&found.category!=="ingredient")throw new Error("Ce nom est déjà utilisé par un soin. Choisis un autre nom.");
+        if(found&&existing.some(s=>s.resource_id===found.id))throw new Error("Cet ingrédient est déjà rattaché à ce lieu.");
+        if(found){
+          resourceId=found.id;
+          if(found.active===false){
+            const {error}=await db.from("resources").update({active:true}).eq("id",resourceId);
+            if(error)throw error;
+          }
+        }else{
+          const {data,error}=await db.from("resources").insert({name:resourceName,category:"ingredient",stock:0,unit_price:Math.max(0,num($("supplierAddPrice").value)),active:true}).select("id").single();
+          if(error)throw error;
+          resourceId=data.id;
+        }
+      }
+      if(resourceId&&existing.some(s=>s.resource_id===resourceId))throw new Error("Cet ingrédient est déjà rattaché à ce lieu.");
+      const placeholder=!isNew?existing.find(s=>!s.resource_id):null;
+      const payload={location:place,resource_id:resourceId,unit_price:resourceId?Math.max(0,num($("supplierAddPrice").value)):null,supplier_name:$("supplierAddName").value.trim()||null,telegram:$("supplierAddTelegram").value.trim().toUpperCase()||null,active:true};
+      const query=placeholder?db.from("suppliers").update(payload).eq("id",placeholder.id):db.from("suppliers").insert(payload);
+      const {data,error}=await query.select("id").single();
+      if(error)throw error;
+      if(!data?.id)throw new Error("L’enregistrement n’a pas été confirmé.");
+      dialog.close();
+      await loadRemoteState();
+      restoreSupplierDrafts(drafts);
+      toast(isNew?"Lieu ajouté.":"Ingrédient ajouté au fournisseur.");
+    }catch(err){fail(err.message||"Impossible d’enregistrer.");}
+    finally{dialog.dataset.saving="0";$("supplierAddConfirm").disabled=false;$("supplierAddCancel").disabled=false;}
   });
 
   $("saveSuppliers").addEventListener("click",async()=>{
