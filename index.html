@@ -1746,7 +1746,7 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Heure</th><th>Opération</th><th>Ressource</th><th>Qté</th><th>Prix / montant</th><th>Caisse</th><th>Effectué par</th><th>Note</th></tr></thead>
+              <thead><tr><th>Date</th><th>Heure</th><th>Opération</th><th>Ressource</th><th>Qté</th><th>Prix / montant</th><th>Caisse</th><th title="Montant de la caisse après ce mouvement">Solde de caisse</th><th>Effectué par</th><th>Note</th></tr></thead>
               <tbody id="historyBody"></tbody>
             </table>
           </div>
@@ -2720,7 +2720,7 @@ $('navigationSave').addEventListener('click',async()=>{
         db.from("suppliers").select("*").eq("active",true),
         db.rpc("get_orders_v2"),
         db.rpc("get_recipe_pricing"),
-        db.rpc("get_movement_history")
+        db.rpc("get_movement_history_with_balance")
       ]);
       for(const r of [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements]) if(r.error) throw r.error;
 
@@ -2793,7 +2793,7 @@ $('navigationSave').addEventListener('click',async()=>{
           unitPrice:h.unit_price==null?null:num(h.unit_price),
           total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),
           amount:(isCash||isDeliveryFee)?Math.abs(num(h.cash_delta)):null,
-          cashDelta:num(h.cash_delta),note:h.note||"",
+          cashDelta:num(h.cash_delta),cashBalanceAfter:h.cash_balance_after==null?null:num(h.cash_balance_after),note:h.note||"",
           actorName:h.actor_name||"Utilisateur inconnu"
         };
       });
@@ -3161,7 +3161,7 @@ $('navigationSave').addEventListener('click',async()=>{
     $("historyType").value=types.includes(current)?current:"";
     const q=$("historySearch").value.trim().toLowerCase(),t=$("historyType").value,m=$("historyMonth").value;
     const filtered=[...state.history].reverse().filter(h=>{const rn=h.resourceId?res(h.resourceId)?.name||h.resourceName||"":h.resourceName||"";const hay=(typeLabel(h.type)+" "+rn+" "+(h.actorName||"")+" "+(h.note||"")).toLowerCase();return (!q||hay.includes(q))&&(!t||h.type===t)&&(!m||String(h.date||"").startsWith(m));});
-    $("historyBody").innerHTML=filtered.length?filtered.map(h=>`<tr><td>${esc(h.date||"")}</td><td>${esc(h.time||"—")}</td><td><span class="pill ${["ACHAT","CAISSE_SORTIE"].includes(h.type)?"red":["VENTE","PHARMACIE_VENTE","CAISSE_ENTREE"].includes(h.type)?"green":"gold"}">${esc(typeLabel(h.type))}</span></td><td>${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"—":h.resourceName||"—")}</td><td>${h.qty!=null?esc(h.qty):"—"}</td><td class="money">${h.unitPrice!=null?money(h.total!=null?h.total:num(h.qty)*num(h.unitPrice)):h.amount!=null?money(h.amount):"—"}</td><td class="${num(h.cashDelta)<0?"bad":num(h.cashDelta)>0?"good":"muted"}">${num(h.cashDelta)===0?"—":(num(h.cashDelta)>0?"+":"")+money(h.cashDelta)}</td><td><strong style="color:#dce7f0">${esc(h.actorName||"Utilisateur inconnu")}</strong></td><td>${esc(h.note||"")}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">Aucun mouvement ne correspond aux filtres.</td></tr>`;
+    $("historyBody").innerHTML=filtered.length?filtered.map(h=>`<tr><td>${esc(h.date||"")}</td><td>${esc(h.time||"—")}</td><td><span class="pill ${["ACHAT","CAISSE_SORTIE"].includes(h.type)?"red":["VENTE","PHARMACIE_VENTE","CAISSE_ENTREE"].includes(h.type)?"green":"gold"}">${esc(typeLabel(h.type))}</span></td><td>${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"—":h.resourceName||"—")}</td><td>${h.qty!=null?esc(h.qty):"—"}</td><td class="money">${h.unitPrice!=null?money(h.total!=null?h.total:num(h.qty)*num(h.unitPrice)):h.amount!=null?money(h.amount):"—"}</td><td class="${num(h.cashDelta)<0?"bad":num(h.cashDelta)>0?"good":"muted"}">${num(h.cashDelta)===0?"—":(num(h.cashDelta)>0?"+":"")+money(h.cashDelta)}</td><td class="money" style="white-space:nowrap" title="Solde après ce mouvement">${h.cashBalanceAfter==null?"—":money(h.cashBalanceAfter)}</td><td><strong style="color:#dce7f0">${esc(h.actorName||"Utilisateur inconnu")}</strong></td><td>${esc(h.note||"")}</td></tr>`).join(""):`<tr><td colspan="10" class="empty">Aucun mouvement ne correspond aux filtres.</td></tr>`;
   }
   async function loadUsers(){
     if(!(isAdmin||isAdjoint))return;
