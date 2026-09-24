@@ -608,7 +608,7 @@
 
 .book-report .book-inline-field{display:inline-block!important;width:auto!important;max-width:100%;margin:3px 5px;padding:5px 8px;border:1px solid #5d7f9e;border-bottom:2px solid #345675;border-radius:3px;background:#fff9e3;color:#101a28;font:inherit;vertical-align:baseline;box-shadow:inset 0 1px 3px #74552922}
 .book-report .book-field-lieu{width:190px!important}
-.book-report .book-field-points{width:90px!important}
+.book-report .book-field-points,.book-report .book-field-nombre{width:90px!important}
 .book-report .book-inline-field:focus{outline:2px solid #305777;outline-offset:2px}
 .book-report .book-inline-field::placeholder{color:#617f98;opacity:1}
 .book-spread{display:grid;grid-template-columns:52px minmax(0,1fr) 52px;gap:12px;align-items:start}
@@ -1106,6 +1106,15 @@
 .supplier-add-dialog input,.supplier-add-dialog select{width:100%}
 #supplierAddError{color:#ffb5a8;white-space:pre-wrap}
 
+
+.book-editor-section{margin:20px 0;padding-top:14px;border-top:1px solid #b79a6055}
+.book-editor-section>label{font-weight:bold}
+.book-field-tools{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.book-field-tools .btn{font-size:13px;padding:7px 12px}
+#bookEditor .book-editor-section textarea{min-height:220px}
+#bookEditor .book-editor-identity textarea{min-height:100px}
+.book-editor-identity{margin:16px 0}
+.book-editor-identity summary{cursor:pointer;margin-bottom:12px}
 </style>
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
@@ -1815,7 +1824,10 @@
   </div>
  </div>
  <dialog id="bookEditor" class="book-dialog">
-  <form id="bookSaveForm"><h3>Édition du rapport</h3><label>Titre<input id="bookTitleInput" required maxlength="200"></label><div class="book-editor-fields"><label>Intercalaire<select id="bookCatInput" required></select></label><label>Sous-intercalaire / zone<input id="bookSubInput" placeholder="Ex. Bras droit"></label></div><label>Contenu du modèle<textarea id="bookBodyInput" required></textarea></label><div class="book-toolbar"><button id="bookSave" class="btn good" type="submit">Enregistrer</button><button id="bookCloseEditor" class="btn secondary" type="button">Fermer</button><button id="bookArchive" class="btn danger" type="button">Archiver ce rapport</button></div></form>
+  <form id="bookSaveForm"><h3>Édition du rapport</h3><label>Titre<input id="bookTitleInput" required maxlength="200"></label><div class="book-editor-fields"><label>Intercalaire<select id="bookCatInput" required></select></label><label>Sous-intercalaire / zone<input id="bookSubInput" placeholder="Ex. Bras droit"></label></div><section class="book-editor-section"><label for="bookClinicalInput">1. Constatations cliniques</label><div class="book-field-tools" role="group" aria-label="Ajouter une case"><button type="button" class="btn secondary" data-book-insert="oui_non" data-book-target="bookClinicalInput">＋ Oui / Non</button><button type="button" class="btn secondary" data-book-insert="nombre" data-book-target="bookClinicalInput">＋ Nombre</button></div><textarea id="bookClinicalInput" placeholder="Décris les constatations cliniques…"></textarea></section>
+<section class="book-editor-section"><label for="bookCareInput">2. Traitement et recommandations</label><div class="book-field-tools" role="group" aria-label="Ajouter une case"><button type="button" class="btn secondary" data-book-insert="oui_non" data-book-target="bookCareInput">＋ Oui / Non</button><button type="button" class="btn secondary" data-book-insert="nombre" data-book-target="bookCareInput">＋ Nombre</button></div><textarea id="bookCareInput" placeholder="Décris les soins et les recommandations…"></textarea></section>
+<p class="hint">Place le curseur dans le texte puis clique sur le type de case à insérer. Chaque partie aura son propre bouton Copier dans le carnet.</p>
+<details class="book-editor-identity"><summary>En-tête et signature du rapport</summary><label>En-tête<textarea id="bookHeaderInput"></textarea></label><label>Signature / pied de page<textarea id="bookFooterInput"></textarea></label></details><div class="book-toolbar"><button id="bookSave" class="btn good" type="submit">Enregistrer</button><button id="bookCloseEditor" class="btn secondary" type="button">Fermer</button><button id="bookArchive" class="btn danger" type="button">Archiver ce rapport</button></div></form>
  </dialog>
  <dialog id="bookCategoriesDialog" class="book-dialog"><form id="bookCategoryForm"><h3>Intercalaires</h3><label>Ajouter ou modifier<select id="bookCategorySelect"></select></label><label>Nom<input id="bookCategoryName" required maxlength="120"></label><label>Ordre dans le carnet<input id="bookCategoryOrder" type="number" step="1" required></label><div class="book-toolbar"><button id="bookCategorySave" class="btn" type="submit">Enregistrer</button><button id="bookCategoryDelete" class="btn danger" type="button" hidden>Supprimer l’intercalaire</button><button id="bookCloseCategories" class="btn secondary" type="button">Fermer</button></div></form></dialog>
 </section>
@@ -2264,12 +2276,14 @@ function cleanBookReportBody(body){
   .replace(/\b(par)\s+des\s+(points?\s+(?:de\s+)?sutures?)\b/gi,'$1 {{points}} $2');
 }
 
-function bookFormText(report){
+function bookFormText(report,personalize=true){
  let text=cleanBookReportBody(report.body).replace(/\r\n?/g,'\n').trim();
  const lines=text.split('\n');
  const firstContent=lines.slice(1).find(line=>line.trim());
  if(firstContent && /^\s*[-–]?\s*Cabinet\b/i.test(firstContent))lines.shift();
- text=personaliseBookText(lines.join('\n').trim());
+ text=lines.join('\n').trim();
+ if(personalize)text=personaliseBookText(text);
+ text=text.replace(/\[Oui\s*\/\s*Non\]/gi,'{{oui_non}}').replace(/\[Nombre\]/gi,'{{nombre}}');
  text=text.replace(/\[(lieu|ville)\]/gi,'{{lieu}}').replace(/\[heure\]/gi,'{{heure}}').replace(/\[date\]/gi,'{{date}}');
  // Ancien modèle « Overdoses » sans crochets.
  text=text.replace(/\bà lieu\b/gi,'à {{lieu}}').replace(/\blieu\s*-\s*heure\b/gi,'{{lieu}} - {{heure}}');
@@ -2278,19 +2292,19 @@ function bookFormText(report){
  text=text.replace(new RegExp('\\b'+numbers+'\\s+points?\\b','gi'),'{{points}} points');
  text=text.replace(/\b(par|de)\s+(points?\s+(?:de\s+)?sutures?)\b/gi,'$1 {{points}} $2');
  text=text.split('\n').map(line=>{
-   if(/\bAdministration\b/i.test(line) && !/^\s*Recommandations/i.test(line)){
+   if(/\bAdministration\b/i.test(line) && !/^\s*Recommandations/i.test(line) && !/\{\{(?:administration|oui_non)\}\}/.test(line)){
      return line.replace(/\s*(?::|—|-)?\s*(?:oui|non)\s*[.!]?\s*$/i,'').replace(/[\s:]+$/,'')+' : {{administration}}';
    }
-   if(/Présence de balle dans la plaie/i.test(line)){
+   if(/Présence de balle dans la plaie/i.test(line) && !/\{\{(?:balle|oui_non)\}\}/.test(line)){
      return '– Présence de balle dans la plaie : {{balle}}';
    }
    return line;
  }).join('\n');
  return text;
 }
-function bookFormParts(report){
- let index=0;const parts=[];let offset=0;const text=bookFormText(report);
- const re=/\{\{(lieu|heure|date|points|administration|balle)\}\}/g;let match;
+function bookFormParts(report,personalize=true){
+ let index=0;const parts=[];let offset=0;const text=bookFormText(report,personalize);
+ const re=/\{\{(lieu|heure|date|points|administration|balle|oui_non|nombre)\}\}/g;let match;
  while((match=re.exec(text))){
   parts.push({text:text.slice(offset,match.index)});
   parts.push({kind:match[1],key:match[1]+'-'+index++});
@@ -2304,21 +2318,25 @@ function renderBookForm(report,parts=bookFormParts(report)){
   if(!part.kind)return esc(part.text);
   const val=answers[part.key]||'';
   const attrs=' class="book-inline-field book-field-'+part.kind+'" data-book-answer="'+esc(part.key)+'" data-book-report="'+esc(report.id)+'"';
-  if(part.kind==='administration'||part.kind==='balle'){
-    const label=part.kind==='balle'?'Présence de balle dans la plaie':'Administration effectuée';
+  if(part.kind==='administration'||part.kind==='balle'||part.kind==='oui_non'){
+    const label=part.kind==='balle'?'Présence de balle dans la plaie':part.kind==='oui_non'?'Oui ou non':'Administration effectuée';
     return '<select'+attrs+' aria-label="'+label+'"><option value="">— Choisir —</option><option value="Oui"'+(val==='Oui'?' selected':'')+'>Oui</option><option value="Non"'+(val==='Non'?' selected':'')+'>Non</option></select>';
   }
-  const types={lieu:'text',heure:'time',date:'date',points:'number'},labels={lieu:'Lieu',heure:'Heure',date:'Date',points:'Nombre de points'};
-  return '<input'+attrs+' type="'+types[part.kind]+'" aria-label="'+labels[part.kind]+'" placeholder="'+labels[part.kind]+'" value="'+esc(val)+'"'+(part.kind==='points'?' min="0" step="1"':'')+'>';
+  const types={lieu:'text',heure:'time',date:'date',points:'number',nombre:'number'},labels={lieu:'Lieu',heure:'Heure',date:'Date',points:'Nombre de points',nombre:'Nombre'};
+  return '<input'+attrs+' type="'+types[part.kind]+'" aria-label="'+labels[part.kind]+'" placeholder="'+labels[part.kind]+'" value="'+esc(val)+'"'+(part.kind==='points'||part.kind==='nombre'?' min="0" step="1"':'')+'>';
  }).join('');
 }
 
-function bookReportSections(report){
+function bookReportSections(report,personalize=true){
+ const explicit=/^\[\[BOOK_(?:CLINICAL|CARE|FOOTER)\]\][ \t]*$/m.test(String(report.body||'').replace(/\r/g,''));
  const sections={header:[],clinical:[],care:[],footer:[]};let mode='header';
- for(const part of bookFormParts(report)){
+ for(const part of bookFormParts(report,personalize)){
   if(part.kind){sections[mode].push(part);continue;}
   for(const line of part.text.match(/[^\n]*\n|[^\n]+$/g)||[]){
-   if(/^\s*\*?\s*(?:Circonstances|Contexte|Constatations cliniques)\s*:/i.test(line))mode='clinical';
+   const marker=line.trim().match(/^\[\[BOOK_(CLINICAL|CARE|FOOTER)\]\]$/);
+   if(marker){mode=marker[1].toLowerCase();continue;}
+   if(explicit){sections[mode].push({text:line});continue;}
+   if(/^\s*\*?\s*(?:Circonstances|Contexte|Constatations cliniques|Substance consommée)\s*:/i.test(line))mode='clinical';
    else if(/^\s*\*?\s*(?:Traitement administré|Soins|Recommandations|Observations particulières)\s*:/i.test(line)||/^\s*Lors de la visite de contrôle/i.test(line))mode='care';
    else if(/^\s*(?:Fait à|Signature\s*:)/i.test(line))mode='footer';
    if(mode==='care' && /^\s*\*{3,}\s*$/.test(line))mode='footer';
@@ -2329,7 +2347,7 @@ function bookReportSections(report){
 }
 function bookSectionText(report,section){
  const answers=bookAnswers.get(bookAnswerKey(report.id))||{};
- const labels={lieu:'lieu',heure:'heure',date:'date',points:'nombre de points',administration:'oui/non',balle:'oui/non'};
+ const labels={lieu:'lieu',heure:'heure',date:'date',points:'nombre de points',nombre:'nombre',oui_non:'oui/non',administration:'oui/non',balle:'oui/non'};
  return (bookReportSections(report)[section]||[]).map(p=>p.kind?(answers[p.key]||'['+labels[p.kind]+']'):p.text).join('').trim();
 }
 function renderBookSections(report){
@@ -2351,8 +2369,8 @@ $('bookPaper').addEventListener('click',async e=>{
 
 function bookCompletedText(report){
  const answers=bookAnswers.get(bookAnswerKey(report.id))||{};
- const labels={lieu:'lieu',heure:'heure',date:'date',points:'nombre de points',administration:'oui/non',balle:'oui/non'};
- return report.title+'\n'+bookFormParts(report).map(part=>part.kind?(answers[part.key]||'['+labels[part.kind]+']'):part.text).join('');
+ const labels={lieu:'lieu',heure:'heure',date:'date',points:'nombre de points',nombre:'nombre',oui_non:'oui/non',administration:'oui/non',balle:'oui/non'};
+ return report.title+'\n'+Object.values(bookReportSections(report)).flat().map(part=>part.kind?(answers[part.key]||'['+labels[part.kind]+']'):part.text).join('');
 }
 $('bookPaper').addEventListener('input',e=>{
  const input=e.target.closest('[data-book-answer]');if(!input)return;
@@ -2407,11 +2425,39 @@ async function turnBook(next){
  bookTurning=false;
 }
 let bookTurning=false;
+
+function bookEditorSections(report){
+ const sections=bookReportSections(report,false);
+ if(!sections.clinical.length&&!sections.care.length){sections.clinical=sections.header;sections.header=[];}
+ const labels={lieu:'[lieu]',heure:'[heure]',date:'[date]',points:'[Nombre]',nombre:'[Nombre]',administration:'[Oui / Non]',balle:'[Oui / Non]',oui_non:'[Oui / Non]'};
+ return Object.fromEntries(Object.entries(sections).map(([key,parts])=>[key,parts.map(p=>p.kind?labels[p.kind]:p.text).join('').trim()]));
+}
+function bookEditorBody(){
+ return [
+  $('bookHeaderInput').value.trim(),
+  '[[BOOK_CLINICAL]]',
+  $('bookClinicalInput').value.trim(),
+  '[[BOOK_CARE]]',
+  $('bookCareInput').value.trim(),
+  '[[BOOK_FOOTER]]',
+  $('bookFooterInput').value.trim()
+ ].join('\n\n');
+}
+$('bookEditor').addEventListener('click',e=>{
+ const button=e.target.closest('[data-book-insert]');if(!button)return;
+ const input=$(button.dataset.bookTarget);
+ const token=button.dataset.bookInsert==='oui_non'?'[Oui / Non]':'[Nombre]';
+ const start=input.selectionStart,end=input.selectionEnd;
+ input.setRangeText(token,start,end,'end');
+ input.focus();input.dispatchEvent(new Event('input',{bubbles:true}));
+});
 function openBookEditor(fresh){
  if(!canEditBook())return;
  const r=fresh?null:bookPages()[bookPage];
  $('bookEditor').dataset.reportId=r?.id||'';
- $('bookTitleInput').value=r?.title||'';$('bookSubInput').value=r?.subcategory||'';$('bookBodyInput').value=cleanBookReportBody(r?.body||'');
+ $('bookTitleInput').value=r?.title||'';$('bookSubInput').value=r?.subcategory||'';
+ const sections=r?bookEditorSections(r):{header:'Cabinet Médical de Saint-Denis\nRapport médical\nDr Médecin\n────────────────────',clinical:'Constatations cliniques :\n',care:'Traitement administré :\n\nRecommandations :\n',footer:'Fait à Saint-Denis,\nSignature :'};
+ $('bookHeaderInput').value=sections.header;$('bookClinicalInput').value=sections.clinical;$('bookCareInput').value=sections.care;$('bookFooterInput').value=sections.footer;
  $('bookCatInput').innerHTML=bookCategories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
  if(r?.category_id)$('bookCatInput').value=r.category_id;
  $('bookArchive').hidden=!r?.id;$('bookEditor').showModal();
@@ -2434,15 +2480,16 @@ $('bookCloseEditor').addEventListener('click',()=>{if(confirm('Fermer sans enreg
 $('bookSaveForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!canEditBook())return;
  const id=$('bookEditor').dataset.reportId;
- const record={title:$('bookTitleInput').value.trim(),subcategory:$('bookSubInput').value.trim(),body:cleanBookReportBody($('bookBodyInput').value),category_id:$('bookCatInput').value,updated_at:new Date().toISOString()};
+ const record={title:$('bookTitleInput').value.trim(),subcategory:$('bookSubInput').value.trim(),body:cleanBookReportBody(bookEditorBody()),category_id:$('bookCatInput').value,updated_at:new Date().toISOString()};
  if(!record.title||!record.category_id)return;
+ if(!$('bookClinicalInput').value.trim()&&!$('bookCareInput').value.trim()){toast('Renseigne au moins une partie du rapport.');return;}
  $('bookSave').disabled=true;
  try{
   const q=id
    ? db.from('consultation_user_templates').update(record).eq('id',id).eq('owner_id',currentUser.id)
    : db.from('consultation_user_templates').insert({...record,owner_id:currentUser.id});
   const {data,error}=await q.select('id').single();if(error)throw error;
-  $('bookEditor').close();await loadBook();bookPage=bookPages().findIndex(r=>r.id===data.id);renderBook();toast('Rapport enregistré dans ton carnet.');
+  bookAnswers.delete(bookAnswerKey(data.id));$('bookEditor').close();await loadBook();bookPage=bookPages().findIndex(r=>r.id===data.id);renderBook();toast('Rapport enregistré dans ton carnet.');
  }catch(e){dbError(e);}finally{$('bookSave').disabled=false;}
 });
 $('bookArchive').textContent='Supprimer ce rapport';
@@ -2557,7 +2604,7 @@ function renderAdminNotebook(){
  const report=adminNotebookReports.find(r=>r.id===adminNotebookSelected);
  if(!report){adminNotebookSelected='oath';renderAdminNotebook();return;}
  const category=adminNotebookCategories.find(cat=>cat.id===report.category_id);
- const text=personaliseBookTextFor(report.body,user?.display_name||'Nom non renseigné',gradeLabel(user?.medical_grade));
+ const text=personaliseBookTextFor(Object.values(bookEditorSections(report)).join('\n\n'),user?.display_name||'Nom non renseigné',gradeLabel(user?.medical_grade));
  $('adminNotebookPaper').innerHTML=bookOrnament+'<div class="admin-notebook-owner"><strong>'+esc(user?.display_name||'Personnel médical')+'</strong><br><small>'+esc(gradeLabel(user?.medical_grade))+'</small></div><p class="book-kicker">'+esc(category?.name||'Intercalaire')+' · '+esc(report.subcategory||'')+'</p><h2>'+esc(report.title)+'</h2><div class="admin-notebook-text">'+esc(text)+'</div>'+bookOrnament;
 }
 
