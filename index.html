@@ -2258,8 +2258,14 @@ function personaliseBookText(text){
  const clinician=bookClinician();
  return personaliseBookTextFor(text,clinician.name,clinician.grade);
 }
+function cleanBookReportBody(body){
+ return String(body||'')
+  .replace(/^[ \t]*\*{0,2}[ \t]*(?:Circonstances|Contexte)[ \t]*:[^\n]*(?:\r?\n|$)[\s\S]*?(?=^[ \t]*\*{0,2}[ \t]*(?:Constatations cliniques|Traitement administré|Soins|Recommandations|Observations particulières|Substance consommée)[ \t]*:|^[ \t]*(?:Fait à|Signature[ \t]*:)|$(?![\s\S]))/gim,'')
+  .replace(/\b(par)\s+des\s+(points?\s+(?:de\s+)?sutures?)\b/gi,'$1 {{points}} $2');
+}
+
 function bookFormText(report){
- let text=String(report.body||'').replace(/\r\n?/g,'\n').trim();
+ let text=cleanBookReportBody(report.body).replace(/\r\n?/g,'\n').trim();
  const lines=text.split('\n');
  const firstContent=lines.slice(1).find(line=>line.trim());
  if(firstContent && /^\s*[-–]?\s*Cabinet\b/i.test(firstContent))lines.shift();
@@ -2331,7 +2337,7 @@ function renderBookSections(report){
  return renderBookForm(report,sections.header)+['clinical','care'].map((key,i)=>{
   const content=renderBookForm(report,sections[key]).trim();
   if(!content)return '';
-  return '<section class="book-copy-section" aria-label="'+(i===0?'Circonstances et constatations':'Traitement et recommandations')+'"><div>'+content+'</div><div class="book-copy-section-actions"><button type="button" class="book-copy-part" data-book-copy="'+key+'" data-report-id="'+esc(report.id)+'" aria-label="Copier '+(i===0?'les circonstances et constatations':'le traitement et les recommandations')+'">⧉ Copier</button></div></section>';
+  return '<section class="book-copy-section" aria-label="'+(i===0?'Constatations cliniques':'Traitement et recommandations')+'"><div>'+content+'</div><div class="book-copy-section-actions"><button type="button" class="book-copy-part" data-book-copy="'+key+'" data-report-id="'+esc(report.id)+'" aria-label="Copier '+(i===0?'les constatations cliniques':'le traitement et les recommandations')+'">⧉ Copier</button></div></section>';
  }).join('')+renderBookForm(report,sections.footer);
 }
 $('bookPaper').addEventListener('click',async e=>{
@@ -2405,7 +2411,7 @@ function openBookEditor(fresh){
  if(!canEditBook())return;
  const r=fresh?null:bookPages()[bookPage];
  $('bookEditor').dataset.reportId=r?.id||'';
- $('bookTitleInput').value=r?.title||'';$('bookSubInput').value=r?.subcategory||'';$('bookBodyInput').value=r?.body||'';
+ $('bookTitleInput').value=r?.title||'';$('bookSubInput').value=r?.subcategory||'';$('bookBodyInput').value=cleanBookReportBody(r?.body||'');
  $('bookCatInput').innerHTML=bookCategories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');
  if(r?.category_id)$('bookCatInput').value=r.category_id;
  $('bookArchive').hidden=!r?.id;$('bookEditor').showModal();
@@ -2428,7 +2434,7 @@ $('bookCloseEditor').addEventListener('click',()=>{if(confirm('Fermer sans enreg
 $('bookSaveForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!canEditBook())return;
  const id=$('bookEditor').dataset.reportId;
- const record={title:$('bookTitleInput').value.trim(),subcategory:$('bookSubInput').value.trim(),body:$('bookBodyInput').value,category_id:$('bookCatInput').value,updated_at:new Date().toISOString()};
+ const record={title:$('bookTitleInput').value.trim(),subcategory:$('bookSubInput').value.trim(),body:cleanBookReportBody($('bookBodyInput').value),category_id:$('bookCatInput').value,updated_at:new Date().toISOString()};
  if(!record.title||!record.category_id)return;
  $('bookSave').disabled=true;
  try{
