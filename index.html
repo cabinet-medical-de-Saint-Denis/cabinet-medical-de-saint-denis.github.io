@@ -3035,7 +3035,7 @@ $('navigationSave').addEventListener('click',async()=>{
   function projectedIngredientNeed(resourceId,currentRecipeId,currentQty){
     return state.recipes.reduce((total,rc)=>{
       const saved=plannedRecipeQty(rc.dbId);
-      const planned=rc.dbId===currentRecipeId ? saved+num(currentQty) : saved;
+      const planned=rc.dbId===currentRecipeId ? num(currentQty) : saved;
       return total + num(rc.ingredients?.[resourceId]) * planned;
     },0);
   }
@@ -3059,14 +3059,17 @@ $('navigationSave').addEventListener('click',async()=>{
     $("craftBody").innerHTML=rows.map(([id,per])=>{
       const r=res(id),need=num(per)*qty,have=num(r?.stock),ordered=outstandingOrderQty(id);
       const totalPlanned=projectedIngredientNeed(id,rc.dbId,qty);
+      const otherNeeds=state.recipes.filter(other=>other.dbId!==rc.dbId)
+        .map(other=>({name:res(other.productId)?.name||other.productId,quantity:num(other.ingredients?.[id])*plannedRecipeQty(other.dbId)}))
+        .filter(other=>other.quantity>0);
+      const needDetails=otherNeeds.length
+        ? `<div class="hint">Autres fabrications : ${otherNeeds.map(other=>`${esc(other.name)} : ${other.quantity}`).join(" · ")}<br>Total à couvrir : ${totalPlanned}</div>` : "";
       const stockMissing=Math.max(0,need-have);
       const missing=Math.max(0,totalPlanned-have-ordered);
       const ratio=Math.min(100,(have/STOCK_BAR_MAX)*100);
       if(stockMissing>0)allOk=false;
 
-      const availability=stockMissing<=0
-        ? "Disponible"
-        : (missing<=0 ? `${ordered} déjà commandé(s)` : `${ordered} commandé(s) · ${missing} restant(s)`);
+      const availability=`${have} en stock · ${ordered} en commande · ${missing} à commander`;
 
       let orderCell=`<strong>${missing}</strong>`;
       if(missing>0){
@@ -3084,9 +3087,9 @@ $('navigationSave').addEventListener('click',async()=>{
         }
       }
 
-      return `<tr><td class="resource-name">${esc(r?.name||id)}</td><td>${num(per)}</td><td><strong>${need}</strong></td><td>${have}</td><td><div class="progress"><span class="${stockMissing>0?"short":""}" style="width:${ratio}%"></span></div><div class="hint">${esc(availability)} · ${have}/${STOCK_BAR_MAX}</div></td><td class="craft-order-cell ${missing>0?"bad":"good"}">${orderCell}</td></tr>`;
+      return `<tr><td class="resource-name">${esc(r?.name||id)}</td><td>${num(per)}</td><td><strong>${need}</strong>${needDetails}</td><td>${have}</td><td><div class="progress"><span class="${stockMissing>0?"short":""}" style="width:${ratio}%"></span></div><div class="hint">${esc(availability)} · ${have}/${STOCK_BAR_MAX}</div></td><td class="craft-order-cell ${missing>0?"bad":"good"}">${orderCell}</td></tr>`;
     }).join("");
-    $("craftDescription").innerHTML=`Fabrication de <strong>${qty} ${esc(product?.name||rc.productId)}</strong>. Les commandes « À commander » et « En cours » sont prises en compte automatiquement.`;
+    $("craftDescription").innerHTML=`Fabrication de <strong>${qty} ${esc(product?.name||rc.productId)}</strong>. Commander enregistre cette quantité pour cette recette, sans l’ajouter une seconde fois. Les autres fabrications prévues sont détaillées ci-dessous. Le stock et les commandes « À commander » et « En cours » sont déduits.`;
     $("craftButton").disabled=!allOk||!rows.length;
     $("orderCraftButton").disabled=!rows.length;
   }
@@ -4210,7 +4213,6 @@ $('navigationSave').addEventListener('click',async()=>{
       });
       if(error)throw error;
       await loadRemoteState();
-      $("craftQty").value="1";
       Object.keys(supplierChoices).forEach(resourceId=>craftSupplierChoices.delete(resourceId));
       renderCraft();
       const added=num(data);
