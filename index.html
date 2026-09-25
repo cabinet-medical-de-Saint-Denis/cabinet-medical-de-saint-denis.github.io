@@ -1459,6 +1459,7 @@
                   <select id="mvType">
                     <option value="ACHAT">Achat</option>
                     <option value="VENTE">Vente</option>
+                    <option value="RETRAIT_STOCK">Retrait du stock</option>
                   </select>
                 </div>
                 <div class="field"><label>Quantité</label><input type="number" id="mvQty" min="0.01" step="0.01" required></div>
@@ -2185,7 +2186,7 @@
   }
   function typeLabel(t){
     return {
-      ACHAT:"Achat",DEPOT:"Dépôt",SORTIE:"Sortie",VENTE:"Vente",PHARMACIE_VENTE:"Vente pharmacie",
+      ACHAT:"Achat",DEPOT:"Dépôt",SORTIE:"Sortie",RETRAIT_STOCK:"Retrait du stock",VENTE:"Vente",PHARMACIE_VENTE:"Vente pharmacie",
       CORRECTION_PLUS:"Correction +",CORRECTION_MOINS:"Correction -",
       FABRICATION:"Fabrication",CONSOMMATION_FAB:"Consommation fabrication",
       CAISSE_ENTREE:"Entrée de caisse",CAISSE_SORTIE:"Dépense de caisse",
@@ -3008,20 +3009,27 @@ $('navigationSave').addEventListener('click',async()=>{
   }
   function fillMovementResources(){
     const current=$("mvResource").value;
-    $("mvResource").innerHTML=activeResources().map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+
-      '<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>';
-    if(activeResources().some(r=>r.id===current)||current==="__OTHER__")$("mvResource").value=current;
-    else if(activeResources()[0])$("mvResource").value=activeResources()[0].id;
+    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const resources=activeResources().filter(r=>!withdrawal||state.recipes.some(rc=>rc.productId===r.id));
+    $("mvResource").innerHTML=resources.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+
+      (withdrawal?"":'<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>');
+    if(resources.some(r=>r.id===current)||(!withdrawal&&current==="__OTHER__"))$("mvResource").value=current;
+    $("mvQty").min=withdrawal?"1":"0.01";
+    $("mvQty").step=withdrawal?"1":"0.01";
+    $("mvPrice").disabled=withdrawal;
+    $("mvPrice").closest(".field").style.display=withdrawal?"none":"";
+    $("mvTotal").closest(".field").querySelector("label").textContent=withdrawal?"Caisse":"Total";
     syncMovementPrice();
   }
   function syncMovementPrice(){
-    const isOther=$("mvResource").value==="__OTHER__";
-    const r=isOther?null:res($("mvResource").value);
-    if(r)$("mvPrice").value=num(r.unitPrice).toFixed(2);
-    if(isOther)$("mvPrice").value="0.00";
+    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const r=res($("mvResource").value);
+    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);
     calcMovementTotal();
   }
-  function calcMovementTotal(){ $("mvTotal").value=money(num($("mvQty").value)*num($("mvPrice").value)); }
+  function calcMovementTotal(){
+    $("mvTotal").value=$("mvType").value==="RETRAIT_STOCK"?"Aucun mouvement d’argent":money(num($("mvQty").value)*num($("mvPrice").value));
+  }
   function outstandingOrderQty(resourceId){
     return state.orders
       .filter(o=>o.resourceId===resourceId && (o.status==="a_commander"||o.status==="en_cours"))
@@ -4146,6 +4154,7 @@ $('navigationSave').addEventListener('click',async()=>{
       await loadRemoteState();toast("Inventaire enregistré en ligne.");
     }catch(e){dbError(e);setSync("Erreur","bad");}
   });
+  $("mvType").addEventListener("change",fillMovementResources);
   $("mvResource").addEventListener("change",syncMovementPrice);$("mvQty").addEventListener("input",calcMovementTotal);$("mvPrice").addEventListener("input",calcMovementTotal);
   $("movementForm").addEventListener("submit",async e=>{
     e.preventDefault();
@@ -4155,7 +4164,10 @@ $('navigationSave').addEventListener('click',async()=>{
     const note=$("mvNote").value.trim();
     if((!isOther&&!resource)||qty<=0){toast("Indique une ressource et une quantité valide.");return;}
     if(isOther&&!note){toast("Pour « Autre », indique obligatoirement le motif dans la note.");$("mvNote").focus();return;}
-    const removes=["SORTIE","VENTE","CORRECTION_MOINS"].includes(type);
+    if(type==="RETRAIT_STOCK"&&(!resource||!state.recipes.some(rc=>rc.productId===resource.id)||!Number.isInteger(qty))){
+      toast("Choisis un article de recette et une quantité entière.");return;
+    }
+    const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK"].includes(type);
     if(resource&&removes&&num(resource.stock)<qty){toast("Stock insuffisant pour cette sortie.");return;}
     const qDelta=["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0;
     const cashDelta=type==="ACHAT"?-total:type==="VENTE"?total:0;
