@@ -141,7 +141,7 @@
     @keyframes fade{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
 
     .grid{display:grid;gap:18px}
-    .grid.cards{grid-template-columns:repeat(4,minmax(160px,1fr))}
+    .grid.cards{grid-template-columns:repeat(5,minmax(150px,1fr))}
     .grid.two{grid-template-columns:1.1fr .9fr}
     .dashboard-three{display:grid;grid-template-columns:minmax(220px,.7fr) minmax(240px,.8fr) minmax(310px,1fr) minmax(430px,1.35fr);gap:18px;margin-top:18px;align-items:stretch}
     .dashboard-three .card{min-width:0;height:100%;display:flex;flex-direction:column}
@@ -1221,6 +1221,11 @@
           <div class="sub">Selon les prix unitaires actuels</div>
         </div>
         <div class="card metric">
+          <div class="label">Valeur pharmacie</div>
+          <div class="value" id="dashPharmacyValue">0,00 $</div>
+          <div class="sub">Valeur de vente du stock en pharmacie</div>
+        </div>
+        <div class="card metric">
           <div class="label">Valeur du cabinet</div>
           <div class="value" id="dashCabinetValue">0,00 $</div>
           <div class="sub">Caisse + valeur du stock</div>
@@ -2207,6 +2212,11 @@
     toast(msg.includes("duplicate")?"Ce nom existe déjà.":msg);
   }
   function stockValue(){return activeResources().reduce((a,r)=>a+num(r.stock)*num(r.unitPrice),0);}
+  function pharmacyStockValue(){
+    return pharmacyItems.reduce((total,item)=>
+      total + Math.max(0,num(item.pharmacy_quantity))*Math.max(0,num(item.pharmacy_price)),0);
+  }
+
   function monthExpenses(){
     const ym=todayISO().slice(0,7);
     return state.history.filter(h=>String(h.date||"").startsWith(ym) && (h.type==="ACHAT"||h.type==="CAISSE_SORTIE"||h.type==="FRAIS_LIVRAISON"))
@@ -2712,7 +2722,7 @@ $('navigationSave').addEventListener('click',async()=>{
     isRefreshing=true;
     if(!silent)setSync("Synchronisation…","busy");
     try{
-      const [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements] = await Promise.all([
+      const [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements,pharmacy] = await Promise.all([
         db.from("cabinet_state").select("*").eq("id",1).single(),
         db.from("resources").select("*").order("name"),
         db.from("recipes").select("*").eq("active",true).order("name"),
@@ -2721,9 +2731,10 @@ $('navigationSave').addEventListener('click',async()=>{
         db.from("suppliers").select("*").eq("active",true),
         db.rpc("get_orders_v2"),
         db.rpc("get_recipe_pricing"),
-        db.rpc("get_movement_history_with_balance")
+        db.rpc("get_movement_history_with_balance"),
+        db.rpc("get_pharmacy_inventory")
       ]);
-      for(const r of [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements]) if(r.error) throw r.error;
+      for(const r of [cab,resources,recipes,ingredients,fabricationPlans,suppliers,orders,pricing,movements,pharmacy]) if(r.error) throw r.error;
 
       const c=cab.data||{};
       state.settings={ownerName:c.telegram_owner_name??"John Myers",name:c.cabinet_name||defaults.settings.name,place:c.place||defaults.settings.place,telegram:c.telegram||"",giphyApiKey:c.giphy_api_key||""};
@@ -2780,6 +2791,7 @@ $('navigationSave').addEventListener('click',async()=>{
         cabinetReturn:num(p.cabinet_return),
         pharmacySellable:p.pharmacy_sellable!==false
       }));
+      pharmacyItems=(pharmacy.data||[]).filter(item=>item.pharmacy_sellable!==false);
       state.history=(movements.data||[]).map(h=>{
         const isCash=["CAISSE_ENTREE","CAISSE_SORTIE"].includes(h.movement_type);
         const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";
@@ -2993,6 +3005,7 @@ $('navigationSave').addEventListener('click',async()=>{
     renderRecipePricing();
     $("dashCash").textContent=money(state.cash);
     $("dashStockValue").textContent=money(stockValue());
+    $("dashPharmacyValue").textContent=money(pharmacyStockValue());
     $("dashCabinetValue").textContent=money(state.cash+stockValue());
     $("dashMonthExpenses").textContent=money(monthExpenses());
     $("cashBig").textContent=money(state.cash);
@@ -3807,6 +3820,7 @@ $('navigationSave').addEventListener('click',async()=>{
       if(error)throw error;
       pharmacyItems=(data||[]).filter(item=>item.pharmacy_sellable!==false);
       renderPharmacy();
+      if($("dashPharmacyValue"))$("dashPharmacyValue").textContent=money(pharmacyStockValue());
     }catch(err){
       dbError(err,"Impossible de charger la pharmacie.");
       if($("pharmacyBody"))$("pharmacyBody").innerHTML='<tr><td colspan="4" class="pharmacy-empty">Impossible de charger la pharmacie.</td></tr>';
