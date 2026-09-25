@@ -2790,7 +2790,7 @@ $('navigationSave').addEventListener('click',async()=>{
           type:h.movement_type,
           resourceId:h.resource_id,
           resourceName:h.resource_id?res(h.resource_id)?.name||"Ressource":(isCash?"Caisse":"Autre"),
-          qty:isDeliveryFee?null:(h.resource_id||!isCash)?Math.abs(num(h.quantity_delta)):null,
+          qty:isDeliveryFee?null:(h.resource_id||!isCash)?num(h.quantity_delta):null,
           unitPrice:h.unit_price==null?null:num(h.unit_price),
           total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),
           amount:(isCash||isDeliveryFee)?Math.abs(num(h.cash_delta)):null,
