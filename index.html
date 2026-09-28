@@ -2211,7 +2211,8 @@
     const msg=error?.message||fallback;
     toast(msg.includes("duplicate")?"Ce nom existe déjà.":msg);
   }
-  function stockValue(){return activeResources().reduce((a,r)=>a+num(r.stock)*num(r.unitPrice),0);}
+  function inventoryStockResources(){return activeResources().filter(r=>r.kind==="ingredient" || state.recipes.some(rc=>rc.productId===r.id));}
+  function stockValue(){return inventoryStockResources().reduce((a,r)=>a+num(r.stock)*num(r.unitPrice),0);}
   function pharmacyStockValue(){
     return pharmacyItems.reduce((total,item)=>
       total + Math.max(0,num(item.pharmacy_quantity))*Math.max(0,num(item.pharmacy_price)),0);
@@ -3016,8 +3017,7 @@ $('navigationSave').addEventListener('click',async()=>{
     $("recentPanel").innerHTML=recent.length?recent.map(h=>`<div style="padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div style="display:flex;justify-content:space-between;gap:10px"><strong style="color:#dce7f0">${esc(typeLabel(h.type))}</strong><span class="muted">${esc(h.date)}</span></div><div class="hint">${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"Ressource":h.note||"Caisse")}${h.qty?` · ${h.qty}`:""}</div></div>`).join(""):`<div class="empty">Aucun mouvement enregistré.</div>`;
   }
   function renderInventory(){
-    const inventoryResources=activeResources()
-      .filter(r=>r.kind==="ingredient" || state.recipes.some(rc=>rc.productId===r.id))
+    const inventoryResources=inventoryStockResources()
       .slice().sort((a,b)=>
       String(a.name||"").trim().localeCompare(String(b.name||"").trim(),"fr-FR",{sensitivity:"base",numeric:true})
       || String(a.id||"").localeCompare(String(b.id||"")));
