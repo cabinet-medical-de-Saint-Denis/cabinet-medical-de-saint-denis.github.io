@@ -3025,7 +3025,7 @@ $('navigationSave').addEventListener('click',async()=>{
     $("dashMonthExpenses").textContent=money(monthExpenses());
     $("cashBig").textContent=money(state.cash);
     $("dashMonthName").textContent=new Intl.DateTimeFormat("fr-FR",{month:"long",year:"numeric"}).format(new Date());
-    const low=[...activeResources()].sort((a,b)=>num(a.stock)-num(b.stock)).slice(0,6);
+    const low=[...inventoryStockResources()].sort((a,b)=>num(a.stock)-num(b.stock)).slice(0,6);
     $("lowStockPanel").innerHTML=low.length?low.map(r=>`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div><strong style="color:#dce7f0">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</strong><div class="hint">${r.kind==="soin"?"Soin fabriqué":"Ingrédient"}</div></div><span class="pill ${num(r.stock)<=5?"red":"gold"}">${num(r.stock)} en stock</span></div>`).join(""):`<div class="empty">Aucune ressource.</div>`;
     const recent=[...state.history].reverse().slice(0,5);
     $("recentPanel").innerHTML=recent.length?recent.map(h=>`<div style="padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div style="display:flex;justify-content:space-between;gap:10px"><strong style="color:#dce7f0">${esc(typeLabel(h.type))}</strong><span class="muted">${esc(h.date)}</span></div><div class="hint">${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"Ressource":h.note||"Caisse")}${h.qty?` · ${h.qty}`:""}</div></div>`).join(""):`<div class="empty">Aucun mouvement enregistré.</div>`;
