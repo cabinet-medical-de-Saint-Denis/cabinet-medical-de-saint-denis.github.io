@@ -1619,6 +1619,13 @@
                 <label>Prix unitaire du soin ($)</label>
                 <div class="currency-input"><input id="newRecipePrice" type="number" min="0" step="0.01" value="0"></div>
               </div>
+              <div class="field" style="grid-column:1/-1">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none">
+                  <input id="newRecipeNonPharmacy" type="checkbox" style="width:auto">
+                  <span>Non vendu en pharmacie</span>
+                </label>
+                <p class="hint" style="margin:4px 0 0">Si cette case est cochée, « Non vendu » sera affiché sur le tableau de bord et cette recette n'apparaîtra pas dans le registre de l'armoire.</p>
+              </div>
             </div>
             <div class="form-actions">
               <button class="btn good" id="addNewRecipe">Ajouter la recette</button>
@@ -1669,7 +1676,7 @@
           <div class="form-actions">
             <button class="btn" id="saveRecipes">Enregistrer les recettes</button>
           </div>
-          <p class="hint">Le coût de fabrication est calculé automatiquement à partir du prix actuel de chaque ingrédient × la quantité utilisée dans la recette. Tant que les prix fournisseurs ne sont pas renseignés, le coût peut donc rester à 0,00 $. 0 signifie que le matériau n'entre pas dans la recette. Le bouton « Retirer » enlève uniquement la recette de fabrication : le soin reste dans l'inventaire afin de ne pas perdre un éventuel stock existant.</p>
+          <p class="hint">Le coût de fabrication est calculé automatiquement à partir du prix actuel de chaque ingrédient × la quantité utilisée dans la recette. Tant que les prix fournisseurs ne sont pas renseignés, le coût peut donc rester à 0,00 $. 0 signifie que le matériau n'entre pas dans la recette. Le bouton « Retirer » enlève la recette de fabrication ainsi que le soin de l'inventaire.</p>
         </div>
       </div>
     </section>
@@ -2746,7 +2753,8 @@ $('navigationSave').addEventListener('click',async()=>{
       state.recipes=(recipes.data||[]).map(rc=>{
         const map={};
         (ingredients.data||[]).filter(i=>i.recipe_id===rc.id).forEach(i=>map[i.ingredient_resource_id]=num(i.quantity));
-        return {dbId:rc.id,productId:rc.product_resource_id,ingredients:map,outputQuantity:num(rc.output_quantity)||1};
+        const nonPharmacy=String(rc.name||"").startsWith("__NON_PHARMACY__:");
+        return {dbId:rc.id,productId:rc.product_resource_id,ingredients:map,outputQuantity:num(rc.output_quantity)||1,pharmacySellable:!nonPharmacy};
       });
       state.fabricationPlans=(fabricationPlans.data||[]).map(p=>({
         recipeId:p.recipe_id,
@@ -2784,15 +2792,21 @@ $('navigationSave').addEventListener('click',async()=>{
         deliveryTime:o.delivery_time||null,
         deliveredAt:o.delivered_at||null
       }));
-      state.pricing=(pricing.data||[]).map(p=>({
-        productId:p.product_resource_id,
-        productName:p.product_name||res(p.product_resource_id)?.name||"Recette",
-        pharmacyPrice:p.pharmacy_price==null?null:num(p.pharmacy_price),
-        recommendedPrice:num(p.recommended_price),
-        cabinetReturn:num(p.cabinet_return),
-        pharmacySellable:p.pharmacy_sellable!==false
-      }));
-      pharmacyItems=(pharmacy.data||[]).filter(item=>item.pharmacy_sellable!==false);
+      state.pricing=(pricing.data||[]).map(p=>{
+        const rc=state.recipes.find(r=>r.productId===p.product_resource_id);
+        return {
+          productId:p.product_resource_id,
+          productName:p.product_name||res(p.product_resource_id)?.name||"Recette",
+          pharmacyPrice:p.pharmacy_price==null?null:num(p.pharmacy_price),
+          recommendedPrice:num(p.recommended_price),
+          cabinetReturn:num(p.cabinet_return),
+          pharmacySellable:p.pharmacy_sellable!==false && rc?.pharmacySellable!==false
+        };
+      });
+      pharmacyItems=(pharmacy.data||[]).filter(item=>
+        item.pharmacy_sellable!==false &&
+        state.recipes.find(rc=>rc.productId===item.product_resource_id)?.pharmacySellable!==false
+      );
       state.history=(movements.data||[]).map(h=>{
         const isCash=["CAISSE_ENTREE","CAISSE_SORTIE"].includes(h.movement_type);
         const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";
@@ -3812,7 +3826,10 @@ $('navigationSave').addEventListener('click',async()=>{
     try{
       const {data,error}=await db.rpc("get_pharmacy_inventory");
       if(error)throw error;
-      pharmacyItems=(data||[]).filter(item=>item.pharmacy_sellable!==false);
+      pharmacyItems=(data||[]).filter(item=>
+        item.pharmacy_sellable!==false &&
+        state.recipes.find(rc=>rc.productId===item.product_resource_id)?.pharmacySellable!==false
+      );
       renderPharmacy();
       if($("dashPharmacyValue"))$("dashPharmacyValue").textContent=money(pharmacyStockValue());
     }catch(err){
@@ -4267,14 +4284,18 @@ $('navigationSave').addEventListener('click',async()=>{
   });
   $("addNewRecipe").addEventListener("click",async()=>{
     if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
-    const name=$("newRecipeName").value.trim(),price=Math.max(0,num($("newRecipePrice").value));if(!name){toast("Indique le nom de la nouvelle recette.");return;}
+    const name=$("newRecipeName").value.trim(),price=Math.max(0,num($("newRecipePrice").value));
+    const nonPharmacy=$("newRecipeNonPharmacy")?.checked===true;
+    if(!name){toast("Indique le nom de la nouvelle recette.");return;}
     try{
       let product=state.resources.find(r=>r.name.trim().toLowerCase()===name.toLowerCase());
       if(product&&recipe(product.id)){toast("Une recette portant ce nom existe déjà.");return;}
       if(!product){const {data,error}=await db.from("resources").insert({name,category:"produit",unit_price:price,stock:0}).select().single();if(error)throw error;product={id:data.id,name:data.name};}
       else {const {error}=await db.from("resources").update({active:true,category:"produit",unit_price:price>0?price:product.unitPrice}).eq("id",product.id);if(error)throw error;}
-      const {error}=await db.from("recipes").insert({name,product_resource_id:product.id,output_quantity:1});if(error)throw error;
-      $("newRecipeName").value="";$("newRecipePrice").value="0";await loadRemoteState();$("craftRecipe").value=product.id;renderCraft();toast(`Recette « ${name} » ajoutée.`);
+      const recipeDbName=nonPharmacy?"__NON_PHARMACY__:"+name:name;
+      const {error}=await db.from("recipes").insert({name:recipeDbName,product_resource_id:product.id,output_quantity:1});if(error)throw error;
+      $("newRecipeName").value="";$("newRecipePrice").value="0";if($("newRecipeNonPharmacy"))$("newRecipeNonPharmacy").checked=false;
+      await loadRemoteState();$("craftRecipe").value=product.id;renderCraft();toast(`Recette « ${name} » ajoutée${nonPharmacy?" · non vendue en pharmacie":""}.`);
     }catch(err){dbError(err);}
   });
   $("addNewIngredient").addEventListener("click",async()=>{
@@ -4378,7 +4399,8 @@ $('navigationSave').addEventListener('click',async()=>{
         if(nameChanged){
           q=await db.from("resources").update({name}).eq("id",rc.productId);
           if(q.error)throw q.error;
-          q=await db.from("recipes").update({name}).eq("id",rc.dbId);
+          const recipeDbName=rc.pharmacySellable===false?"__NON_PHARMACY__:"+name:name;
+          q=await db.from("recipes").update({name:recipeDbName}).eq("id",rc.dbId);
           if(q.error)throw q.error;
         }
 
