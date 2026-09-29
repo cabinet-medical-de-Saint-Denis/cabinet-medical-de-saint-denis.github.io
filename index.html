@@ -1376,6 +1376,42 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   .sd-orders-grid{grid-template-columns:1fr}
 }
 </style>
+<style id="sd-rhodes-lower-layout">
+/* Disposition Saint-Denis calquée sur la zone basse de Rhodes, avec les couleurs Saint-Denis. */
+.dashboard-three{
+  grid-template-columns:minmax(220px,.7fr) minmax(240px,.8fr) minmax(310px,1fr)!important;
+}
+.sd-dashboard-bottom{
+  display:grid;
+  grid-template-columns:1.25fr .9fr;
+  gap:8px;
+  margin-top:8px;
+  align-items:stretch;
+  width:100%;
+}
+.sd-dashboard-bottom>.card{
+  min-width:0;
+  width:100%;
+  height:100%;
+  margin-top:0!important;
+}
+.sd-dashboard-bottom>.sd-orders-overview{
+  margin-top:0!important;
+}
+.sd-dashboard-bottom>.pricing-card{
+  margin-top:0!important;
+}
+.sd-dashboard-bottom .table-wrap{
+  max-width:100%;
+  overflow-x:auto;
+}
+@media (max-width:1200px){
+  .dashboard-three,
+  .sd-dashboard-bottom{
+    grid-template-columns:1fr!important;
+  }
+}
+</style>
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
 
@@ -1541,6 +1577,10 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           </div>
         </div>
 
+        
+      </div>
+
+      <div class="sd-dashboard-bottom">
         <div class="card pricing-card">
           <h3 class="section-title">Prix de vente des recettes <small>modifiables uniquement par l’administrateur</small></h3>
           <div class="card-body">
@@ -1562,10 +1602,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
             <p class="hint">Le « prix conseillé » correspond au tarif de la prestation facturée au patient. Kit de soin et Seringue vivifiante restent affichés mais ne sont pas vendus à la pharmacie.</p>
           </div>
         </div>
-      </div>
-
-      <div class="sd-orders-grid">
-      <div class="card sd-orders-overview" id="sdOrdersOverview">
+        <div class="card sd-orders-overview" id="sdOrdersOverview">
   <h3 class="section-title">
     <span class="sd-orders-overview-heading"><span class="sd-orders-overview-icon" aria-hidden="true"></span><span>Commandes d’ingrédients</span></span>
     <small>Le stock et la comptabilité ne sont modifiés qu’au passage en « Livré ».</small>
@@ -1580,8 +1617,9 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
     <a class="sd-orders-overview-link" href="#ordersCard">Gérer les commandes ↓</a>
   </div>
 </div>
+      </div>
 
-<div class="card" id="ordersCard" style="margin-top:18px">
+      <div class="card" id="ordersCard" style="margin-top:18px">
         <h3 class="section-title">Commandes d'ingrédients <small>le stock et la comptabilité ne sont modifiés qu'au passage en « Livré »</small></h3>
         <div class="card-body">
           <form id="newOrderForm" class="orders-form">
@@ -1652,8 +1690,6 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           <p class="hint">Une commande « À commander » attend encore sa prise en charge. La date et l’heure de livraison sont facultatives et peuvent être ajoutées ou modifiées tant que la commande n’est pas livrée. Le stock et la caisse ne sont modifiés qu’au passage en « Livré ».</p>
         </div>
       </div>
-
-    </div>
 
       <div class="card" style="margin-top:18px">
         <h3 class="section-title">Actions rapides</h3>
