@@ -173,3 +173,16 @@
 #notebooksAdmin .admin-notebook-link:not(.selected):hover{
   color:#000 !important;
 }
+
+/* Saint-Denis — liste gauche carnets du personnel */
+#notebooksAdmin #adminNotebookIndex > .admin-notebook-link,
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group > summary{
+  color:#102a43 !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link{
+  color:#000 !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link.selected,
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link:hover{
+  color:#102a43 !important;
+}
