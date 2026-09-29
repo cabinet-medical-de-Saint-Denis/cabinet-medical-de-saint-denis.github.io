@@ -204,3 +204,59 @@
 #bookIndex .book-divider .book-tab.selected{
   color:#102a43 !important;
 }
+
+/* Saint-Denis — carnet du personnel visuel identique au carnet de consultations */
+#notebooksAdmin #adminNotebookIndex.admin-notebook-index{
+  background:#06111c !important;
+  border:1px solid #4f6f8c !important;
+  border-radius:4px !important;
+  padding:12px !important;
+  color:#f2eadb !important;
+}
+#notebooksAdmin #adminNotebookIndex > .admin-notebook-link{
+  color:#f2eadb !important;
+  font-family:Georgia,"Times New Roman",serif !important;
+  font-size:16px !important;
+  padding:10px 12px !important;
+  border:0 !important;
+  background:transparent !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group{
+  margin:10px 0 !important;
+  padding-bottom:8px !important;
+  border:0 !important;
+  border-bottom:1px solid rgba(91,134,173,.35) !important;
+  background:transparent !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group > summary{
+  cursor:pointer !important;
+  padding:10px 0 !important;
+  background:transparent !important;
+  color:#e8b84f !important;
+  font-family:Georgia,"Times New Roman",serif !important;
+  font-size:17px !important;
+  font-weight:700 !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group > summary small{
+  color:#9e8b5d !important;
+  opacity:1 !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link{
+  display:block !important;
+  width:100% !important;
+  text-align:left !important;
+  background:transparent !important;
+  border:0 !important;
+  color:#f2eadb !important;
+  padding:8px 12px !important;
+  font-family:Georgia,"Times New Roman",serif !important;
+  font-size:15px !important;
+  line-height:1.35 !important;
+}
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link:hover,
+#notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link.selected,
+#notebooksAdmin #adminNotebookIndex > .admin-notebook-link:hover,
+#notebooksAdmin #adminNotebookIndex > .admin-notebook-link.selected{
+  background:rgba(91,134,173,.16) !important;
+  color:#ffffff !important;
+}
