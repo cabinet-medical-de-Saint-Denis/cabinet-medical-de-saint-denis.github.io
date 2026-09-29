@@ -186,3 +186,21 @@
 #notebooksAdmin #adminNotebookIndex .admin-notebook-group .admin-notebook-link:hover{
   color:#102a43 !important;
 }
+
+/* Saint-Denis — forcer les couleurs de la liste du carnet */
+#adminNotebookIndex > .admin-notebook-link,
+#adminNotebookIndex .admin-notebook-group > summary,
+#bookIndex > .book-tab,
+#bookIndex .book-divider > summary{
+  color:#102a43 !important;
+}
+#adminNotebookIndex .admin-notebook-group .admin-notebook-link,
+#bookIndex .book-divider .book-tab{
+  color:#000 !important;
+}
+#adminNotebookIndex .admin-notebook-group .admin-notebook-link:hover,
+#adminNotebookIndex .admin-notebook-group .admin-notebook-link.selected,
+#bookIndex .book-divider .book-tab:hover,
+#bookIndex .book-divider .book-tab.selected{
+  color:#102a43 !important;
+}
