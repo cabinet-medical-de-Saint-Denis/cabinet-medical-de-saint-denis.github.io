@@ -156,3 +156,8 @@
   #bureau .bureau-gif-results{grid-template-columns:repeat(2,minmax(0,1fr))}
   #bureau .bureau-gif-item img{height:110px}
 }
+
+/* Historique — noms des utilisateurs en noir */
+#historyBody td:nth-child(9){
+  color:#000 !important;
+}
