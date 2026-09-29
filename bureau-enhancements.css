@@ -161,3 +161,15 @@
 #historyBody td:nth-child(9){
   color:#000 !important;
 }
+
+/* Saint-Denis — couleurs du carnet du personnel */
+#notebooksAdmin .admin-notebook-group summary,
+#notebooksAdmin .admin-notebook-link.selected{
+  color:#102a43 !important;
+}
+#notebooksAdmin .admin-notebook-link:not(.selected){
+  color:#000 !important;
+}
+#notebooksAdmin .admin-notebook-link:not(.selected):hover{
+  color:#000 !important;
+}
