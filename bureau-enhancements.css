@@ -260,3 +260,34 @@
   background:rgba(91,134,173,.16) !important;
   color:#ffffff !important;
 }
+
+/* Saint-Denis — fond cuir bleu du carnet du personnel */
+html body #notebooksAdmin.view .card .card-body .admin-notebook-layout #adminNotebookIndex.admin-notebook-index{
+  background-color:#07111b !important;
+  background-image:url("data:image/webp;base64,UklGRuQAAABXRUJQVlA4INgAAAAQCACdASqAAIAAPt1ur1QopiSooIkhEBuJaW7gMFhLuXhoAB4oJEvfvElT6UgDbicQLoTKSFVzWL3D23U6w1l/Hdtb5aE2wmoAAP7wilsyZbGP+eJ4JL5rib+lmtNg+eY2PPtWrmbof2rCa1GC3b6Hyj3oUOPeFq3aAHpvZBo6+WCWRFf42O1sCd5/octQaB5PXEeY9/9yl216SdsMmgrYmMpJ/ggNIqKd32HZxc8clmk7CNDzC2ntJWMyLIMbVcUHdmzt8s3GINT2ccK1U5cJb2ivtpZAAAA=") !important;
+  background-repeat:repeat !important;
+  background-size:128px 128px !important;
+  background-position:top left !important;
+  border:1px solid rgba(109,139,165,.55) !important;
+}
+html body #notebooksAdmin.view #adminNotebookIndex > .admin-notebook-link{
+  color:#f1eadc !important;
+  background:rgba(4,12,20,.42) !important;
+}
+html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group{
+  background:rgba(4,12,20,.36) !important;
+  border-color:rgba(109,139,165,.32) !important;
+}
+html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group > summary{
+  color:#e6b95d !important;
+  background:rgba(7,18,29,.70) !important;
+}
+html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group .admin-notebook-link{
+  color:#f0eadf !important;
+  background:rgba(2,8,14,.24) !important;
+}
+html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group .admin-notebook-link:hover,
+html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group .admin-notebook-link.selected{
+  color:#ffffff !important;
+  background:rgba(22,48,70,.82) !important;
+}
