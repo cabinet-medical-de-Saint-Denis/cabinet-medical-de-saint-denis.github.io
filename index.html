@@ -1349,6 +1349,33 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   .sd-order-status{gap:4px;font-size:.78rem}
 }
 </style>
+<style id="sd-orders-grid-layout">
+.sd-orders-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:18px;
+  align-items:start;
+  width:100%;
+  margin-top:18px;
+}
+.sd-orders-grid>.sd-orders-overview,
+.sd-orders-grid>#ordersCard{
+  width:100%;
+  min-width:0;
+  margin-top:0!important;
+}
+.sd-orders-grid>.sd-orders-overview .card-body,
+.sd-orders-grid>#ordersCard .card-body{
+  min-width:0;
+}
+.sd-orders-grid .table-wrap{
+  max-width:100%;
+  overflow-x:auto;
+}
+@media (max-width:1100px){
+  .sd-orders-grid{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
 
@@ -1537,6 +1564,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
         </div>
       </div>
 
+      <div class="sd-orders-grid">
       <div class="card sd-orders-overview" id="sdOrdersOverview">
   <h3 class="section-title">
     <span class="sd-orders-overview-heading"><span class="sd-orders-overview-icon" aria-hidden="true"></span><span>Commandes d’ingrédients</span></span>
@@ -1624,6 +1652,8 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           <p class="hint">Une commande « À commander » attend encore sa prise en charge. La date et l’heure de livraison sont facultatives et peuvent être ajoutées ou modifiées tant que la commande n’est pas livrée. Le stock et la caisse ne sont modifiés qu’au passage en « Livré ».</p>
         </div>
       </div>
+
+    </div>
 
       <div class="card" style="margin-top:18px">
         <h3 class="section-title">Actions rapides</h3>
