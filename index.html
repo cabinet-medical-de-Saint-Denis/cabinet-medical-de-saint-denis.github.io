@@ -1640,12 +1640,15 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
 </style>
 
 <style id="book-report-order">
-.book-index-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;align-items:center}
+.book-index-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px;align-items:center}
 .book-index-row .book-tab{min-width:0;overflow-wrap:anywhere;padding-right:5px}
-.book-report-moves{display:flex;gap:3px;padding-right:2px;color:#d8b86a}
-.book-report-move{display:inline-flex;align-items:center;justify-content:center;width:24px;height:28px;padding:0;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;font:700 18px/1 Georgia,serif;cursor:pointer}
-.book-report-move:hover:not(:disabled),.book-report-move:focus-visible{background:#d8b86a26;outline:1px solid currentColor;outline-offset:1px}
-.book-report-move:disabled{opacity:.3;cursor:default}
+.book-report-moves{display:flex;gap:1px;padding-right:1px;color:#b8aa8c}
+.book-report-move{display:inline-flex;align-items:center;justify-content:center;width:22px;height:26px;padding:0;border:0;border-radius:3px;background:transparent;color:inherit;font:400 14px/1 Georgia,serif;opacity:.55;box-shadow:none;cursor:pointer}
+.book-index-row:hover .book-report-move:not(:disabled),.book-report-move:focus-visible{opacity:1}
+.book-report-move:hover:not(:disabled){background:#d8b86a14}
+.book-report-move:focus-visible{outline:1px solid currentColor;outline-offset:1px}
+.book-report-move:disabled{opacity:.18;cursor:default}
+@media(hover:none){.book-report-move:not(:disabled){opacity:.75}}
 </style>
 
 <style id="resource-names-uppercase">
