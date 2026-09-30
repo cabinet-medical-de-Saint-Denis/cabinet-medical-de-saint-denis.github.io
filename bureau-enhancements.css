@@ -335,3 +335,19 @@ input[id*="ingredient" i],
 [class*="ingredients" i] tbody td:first-child{
   text-transform:uppercase !important;
 }
+
+
+/* Complément : tableaux de commandes / ingrédients */
+[id*="order" i] tbody td:first-child,
+[class*="order" i] tbody td:first-child,
+[id*="command" i] tbody td:first-child,
+[class*="command" i] tbody td:first-child,
+[id*="ingredient" i] tbody td:first-child,
+[class*="ingredient" i] tbody td:first-child,
+td[data-label*="ingredient" i],
+td[data-label*="ingrédient" i],
+[data-ingredient],
+[data-ingredient-id],
+[data-ingredient-key]{
+  text-transform:uppercase !important;
+}
