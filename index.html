@@ -1638,6 +1638,19 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   .sd-orders-overview-table th:nth-child(3){width:24%}
 }
 </style>
+
+<style id="book-report-order">
+.book-index-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;align-items:center}
+.book-index-row .book-tab{min-width:0;overflow-wrap:anywhere;padding-right:5px}
+.book-report-moves{display:flex;gap:3px;padding-right:2px;color:#d8b86a}
+.book-report-move{display:inline-flex;align-items:center;justify-content:center;width:24px;height:28px;padding:0;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;font:700 18px/1 Georgia,serif;cursor:pointer}
+.book-report-move:hover:not(:disabled),.book-report-move:focus-visible{background:#d8b86a26;outline:1px solid currentColor;outline-offset:1px}
+.book-report-move:disabled{opacity:.3;cursor:default}
+</style>
+
+<style id="resource-names-uppercase">
+#newRecipeName,#newIngredientName,#supplierNewResourceName,.recipe-name{text-transform:uppercase}
+</style>
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
 
@@ -2527,6 +2540,15 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   const $=id=>document.getElementById(id);
   const money=n=>new Intl.NumberFormat("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0)+" $";
   const num=n=>Number(n)||0;
+  const resourceNameText=value=>String(value??"").trim().toLocaleUpperCase("fr-FR");
+  function resourceNoteFormatter(resources){
+    const names=[...new Set(resources.map(r=>resourceNameText(r.name)).filter(Boolean))].sort((a,b)=>b.length-a.length);
+    if(!names.length)return value=>String(value||"");
+    const pattern=names.map(name=>name.replace(/[.*+?^$(){}|[\]\\]/g,character=>"\\"+character)).join("|");
+    const mentions=new RegExp("(^|[^\\p{L}\\p{N}_])("+pattern+")(?=$|[^\\p{L}\\p{N}_])","giu");
+    return value=>String(value||"").replace(mentions,(_,prefix,name)=>prefix+resourceNameText(name));
+  }
+
   const todayISO=()=>new Date().toISOString().slice(0,10);
   const res=id=>state.resources.find(r=>r.id===id);
   const recipe=id=>state.recipes.find(r=>r.productId===id);
@@ -2775,7 +2797,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
 // Cabinet de Saint-Denis — chaque utilisateur possède son propre carnet, créé depuis le modèle de base.
 const isBookSupervisor=()=>isAdmin;
 const canEditBook=()=>!!currentUser && currentProfile?.access_status==="approved";
-let bookCategories=[],bookReports=[],bookPage=-1,bookBusy=false,bookLoaded=false;
+let bookCategories=[],bookReports=[],bookPage=-1,bookBusy=false,bookLoaded=false,bookOrderSaving=false;
 const bookOath=[
 "Au moment d'être admis à exercer la médecine, je promets et je jure d'être fidèle aux lois de l'honneur et de la probité.",
 "Mon premier souci sera de rétablir, de préserver ou de promouvoir la santé dans tous ses éléments, physiques et mentaux, individuels et sociaux.",
@@ -2791,12 +2813,21 @@ const bookOath=[
 "Que les hommes et mes confrères m'accordent leur estime si je suis fidèle à mes promesses ; que je sois déshonoré et méprisé si j'y manque."
 ];
 const bookOrnament='<div class="book-ornament" aria-hidden="true">❦ ───── ⚕ ───── ❦</div>';
+function compareBookReports(a,b){
+ return String(a.subcategory||'').localeCompare(String(b.subcategory||''),'fr')
+  || num(a.sort_order)-num(b.sort_order)
+  || a.title.localeCompare(b.title,'fr')
+  || String(a.id).localeCompare(String(b.id));
+}
+function bookReportGroup(report){
+ return bookReports.filter(r=>r.category_id===report.category_id && (r.subcategory||'')===(report.subcategory||'')).sort(compareBookReports);
+}
 function bookPages(){return [{type:'oath'},...bookReports.filter(r=>bookCategories.some(c=>c.id===r.category_id)).sort((a,b)=>{
  const ca=bookCategories.findIndex(c=>c.id===a.category_id),cb=bookCategories.findIndex(c=>c.id===b.category_id);
- return ca-cb || a.subcategory.localeCompare(b.subcategory,'fr') || a.sort_order-b.sort_order || a.title.localeCompare(b.title,'fr');
+ return ca-cb || compareBookReports(a,b);
 })];}
 async function loadBook(){
- if(bookBusy||!currentUser)return;
+ if(bookBusy||bookOrderSaving||!currentUser)return;
  bookBusy=true;$('bookStatus').textContent='Ouverture de ton carnet…';
  try{
   const init=await db.rpc('ensure_personal_consultation_notebook',{p_owner_id:currentUser.id});
@@ -2809,7 +2840,7 @@ async function loadBook(){
   bookCategories=cats.data||[];bookReports=reports.data||[];bookLoaded=true;
   bookPage=Math.min(bookPage,bookPages().length-1);renderBook();
   $('bookStatus').textContent=bookReports.length+' rapports · '+bookCategories.length+' intercalaires · carnet personnel';
- }catch(e){$('bookStatus').textContent='Chargement impossible. Clique sur Actualiser le carnet.';dbError(e);}finally{bookBusy=false;}
+ }catch(e){$('bookStatus').textContent='Chargement impossible. Clique sur Actualiser le carnet.';dbError(e);}finally{bookBusy=false;renderBookIndex();}
 }
 
 // Les réponses restent propres à la consultation en cours, sans modifier le modèle partagé.
@@ -2962,15 +2993,52 @@ function renderBook(){
 }
 function renderBookIndex(){
  const term=$('bookSearch').value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const opened=new Set(Array.from($('bookIndex').querySelectorAll('details[open]'),el=>el.dataset.bookCategory));
  const pages=bookPages();
  $('bookIndex').innerHTML='<button class="book-tab" data-page="0">⚕ Serment des médecins</button>'+bookCategories.map(c=>{
   const list=pages.map((r,i)=>({...r,page:i})).filter(r=>r.category_id===c.id && [r.title,r.subcategory,r.body].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(term));
   if(!list.length)return '';
-  return '<details class="book-divider"'+(term||list.some(r=>r.page===bookPage)?' open':'')+'><summary>'+esc(c.name)+' <small>'+list.length+'</small></summary>'+[...new Set(list.map(r=>r.subcategory))].map(sub=>'<div class="book-subtab">'+esc(sub||'Général')+'</div>'+list.filter(r=>r.subcategory===sub).map(r=>'<button class="book-tab '+(r.page===bookPage?'selected':'')+'" data-page="'+r.page+'">'+esc(r.title)+'</button>').join('')).join('')+'</details>';
+  return '<details class="book-divider" data-book-category="'+esc(c.id)+'"'+(term||opened.has(c.id)||list.some(r=>r.page===bookPage)?' open':'')+'><summary>'+esc(c.name)+' <small>'+list.length+'</small></summary>'+[...new Set(list.map(r=>r.subcategory))].map(sub=>
+   '<div class="book-subtab">'+esc(sub||'Général')+'</div>'+list.filter(r=>r.subcategory===sub).map(r=>{
+    const group=bookReportGroup(r),position=group.findIndex(item=>item.id===r.id);
+    const moves=canEditBook()?'<span class="book-report-moves">'+[-1,1].map(direction=>{
+     const label=(direction<0?'Monter':'Descendre')+' le rapport « '+r.title+' »';
+     const disabled=bookOrderSaving||bookBusy||bookTurning||!!term||position+direction<0||position+direction>=group.length;
+     return '<button type="button" class="book-report-move" data-book-move="'+direction+'" data-report-id="'+esc(r.id)+'" aria-label="'+esc(label)+'" title="'+esc(term?'Efface la recherche pour changer l’ordre des rapports':label)+'"'+(disabled?' disabled':'')+'>'+ (direction<0?'↑':'↓')+'</button>';
+    }).join('')+'</span>':'';
+    return '<div class="book-index-row"><button class="book-tab '+(r.page===bookPage?'selected':'')+'" data-page="'+r.page+'">'+esc(r.title)+'</button>'+moves+'</div>';
+   }).join('')
+  ).join('')+'</details>';
  }).join('');
 }
+async function moveBookReport(reportId,direction){
+ if(!canEditBook()||bookOrderSaving||bookBusy||bookTurning||![-1,1].includes(direction)||$('bookSearch').value.trim())return;
+ const report=bookReports.find(r=>r.id===reportId);if(!report)return;
+ const group=bookReportGroup(report),from=group.findIndex(r=>r.id===reportId),to=from+direction;
+ if(to<0||to>=group.length)return;
+ const selectedId=bookPages()[bookPage]?.id;
+ [group[from],group[to]]=[group[to],group[from]];
+ bookOrderSaving=true;renderBookIndex();$('bookStatus').textContent='Enregistrement de l’ordre des rapports…';
+ try{
+  const {data,error}=await db.rpc('reorder_personal_consultation_reports',{p_report_ids:group.map(r=>r.id)});
+  if(error)throw error;
+  if(!Array.isArray(data)||data.length!==group.length)throw new Error('L’ordre n’a pas pu être confirmé. Actualise le carnet.');
+  const ranks=new Map(data.map(r=>[r.report_id,r.report_sort_order]));
+  if(group.some(r=>!ranks.has(r.id)))throw new Error('La liste des rapports a changé. Actualise le carnet.');
+  bookReports.forEach(r=>{if(ranks.has(r.id))r.sort_order=ranks.get(r.id);});
+  if(selectedId)bookPage=bookPages().findIndex(r=>r.id===selectedId);
+  renderBook();
+  $('bookStatus').textContent=bookReports.length+' rapports · '+bookCategories.length+' intercalaires · ordre personnel enregistré';
+  toast('Ordre des rapports enregistré dans ton carnet.');
+ }catch(e){
+  $('bookStatus').textContent='Déplacement non confirmé. Actualise le carnet avant de réessayer.';
+  dbError(e);
+ }finally{
+  bookOrderSaving=false;renderBookIndex();
+ }
+}
 async function turnBook(next){
- if(bookTurning||!bookLoaded)return;
+ if(bookTurning||bookOrderSaving||!bookLoaded)return;
  next=Math.max(-1,Math.min(bookPages().length-1,next));if(next===bookPage)return;
  bookTurning=true;
  const leaf=$('bookLeaf'),forward=next>bookPage;
@@ -2982,7 +3050,7 @@ async function turnBook(next){
  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
   await leaf.animate([{transform:'rotateY('+(forward?'':'-')+'85deg)',opacity:.4},{transform:'rotateY(0deg)',opacity:1}],{duration:250,easing:'ease-out'}).finished;
  }
- bookTurning=false;
+ bookTurning=false;renderBookIndex();
 }
 let bookTurning=false;
 
@@ -3028,7 +3096,11 @@ $('bookReset').addEventListener('click',()=>{
  toast('Tes réponses de ce rapport ont été effacées.');
 });
 $('bookSearch').addEventListener('input',renderBookIndex);
-$('bookIndex').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b)turnBook(Number(b.dataset.page));});
+$('bookIndex').addEventListener('click',e=>{
+ const move=e.target.closest('[data-book-move]');
+ if(move){e.preventDefault();if(!move.disabled)moveBookReport(move.dataset.reportId,Number(move.dataset.bookMove));return;}
+ const b=e.target.closest('[data-page]');if(b)turnBook(Number(b.dataset.page));
+});
 $('bookCover').addEventListener('click',()=>turnBook(0));
 $('bookPrev').addEventListener('click',()=>turnBook(bookPage-1));
 $('bookNext').addEventListener('click',()=>turnBook(bookPage+1));
@@ -3042,6 +3114,10 @@ $('bookSaveForm').addEventListener('submit',async e=>{
  const id=$('bookEditor').dataset.reportId;
  const record={title:$('bookTitleInput').value.trim(),subcategory:$('bookSubInput').value.trim(),body:cleanBookReportBody(bookEditorBody()),category_id:$('bookCatInput').value,updated_at:new Date().toISOString()};
  if(!record.title||!record.category_id)return;
+ const previous=bookReports.find(r=>r.id===id);
+ if(!previous||previous.category_id!==record.category_id||(previous.subcategory||'')!==record.subcategory){
+  record.sort_order=Math.max(0,...bookReports.filter(r=>r.id!==id&&r.category_id===record.category_id&&(r.subcategory||'')===record.subcategory).map(r=>num(r.sort_order)))+10;
+ }
  if(!$('bookClinicalInput').value.trim()&&!$('bookCareInput').value.trim()){toast('Renseigne au moins une partie du rapport.');return;}
  $('bookSave').disabled=true;
  try{
@@ -3148,7 +3224,7 @@ function renderAdminNotebook(){
  const ownerId=$('adminNotebookUser').value;
  const user=adminNotebookUsers.find(u=>u.id===ownerId);
  const grouped=adminNotebookCategories.map(cat=>{
-  const reports=adminNotebookReports.filter(r=>r.category_id===cat.id).sort((a,b)=>a.sort_order-b.sort_order||a.title.localeCompare(b.title,'fr'));
+  const reports=adminNotebookReports.filter(r=>r.category_id===cat.id).sort(compareBookReports);
   if(!reports.length)return '';
   return '<details class="admin-notebook-group" open><summary>'+esc(cat.name)+' <small>'+reports.length+'</small></summary>'+
     reports.map(r=>'<button type="button" class="admin-notebook-link '+(adminNotebookSelected===r.id?'selected':'')+'" data-admin-report="'+esc(r.id)+'">'+esc(r.title)+'</button>').join('')+
@@ -3289,7 +3365,7 @@ $('navigationSave').addEventListener('click',async()=>{
       state.settings={ownerName:c.telegram_owner_name??"John Myers",name:c.cabinet_name||defaults.settings.name,place:c.place||defaults.settings.place,telegram:c.telegram||"",giphyApiKey:c.giphy_api_key||""};
       state.cash=num(c.cash_balance);
       state.resources=(resources.data||[]).map(r=>({
-        id:r.id,name:r.name,stock:num(r.stock),unitPrice:num(r.unit_price),kind:r.category==="ingredient"?"ingredient":"soin",active:r.active!==false
+        id:r.id,name:resourceNameText(r.name),stock:num(r.stock),unitPrice:num(r.unit_price),kind:r.category==="ingredient"?"ingredient":"soin",active:r.active!==false
       }));
       state.recipes=(recipes.data||[]).map(rc=>{
         const map={};
@@ -3316,7 +3392,7 @@ $('navigationSave').addEventListener('click',async()=>{
       state.orders=(orders.data||[]).map(o=>({
         id:o.id,
         resourceId:o.resource_id,
-        resourceName:o.resource_name||res(o.resource_id)?.name||"Ingrédient",
+        resourceName:resourceNameText(o.resource_name||res(o.resource_id)?.name||"Ingrédient"),
         supplierId:o.supplier_id||null,
         supplierName:[
           o.supplier_location||state.suppliers.find(s=>s.dbId===o.supplier_id)?.place||"",
@@ -3337,7 +3413,7 @@ $('navigationSave').addEventListener('click',async()=>{
         const rc=state.recipes.find(r=>r.productId===p.product_resource_id);
         return {
           productId:p.product_resource_id,
-          productName:p.product_name||res(p.product_resource_id)?.name||"Recette",
+          productName:resourceNameText(p.product_name||res(p.product_resource_id)?.name||"Recette"),
           pharmacyPrice:p.pharmacy_price==null?null:num(p.pharmacy_price),
           recommendedPrice:num(p.recommended_price),
           cabinetReturn:num(p.cabinet_return),
@@ -3347,7 +3423,8 @@ $('navigationSave').addEventListener('click',async()=>{
       pharmacyItems=(pharmacy.data||[]).filter(item=>
         item.pharmacy_sellable!==false &&
         state.recipes.find(rc=>rc.productId===item.product_resource_id)?.pharmacySellable!==false
-      );
+      ).map(item=>({...item,product_name:resourceNameText(item.product_name||res(item.product_resource_id)?.name||"Recette")}));
+      const formatResourceNote=resourceNoteFormatter(state.resources);
       state.history=(movements.data||[]).map(h=>{
         const isCash=["CAISSE_ENTREE","CAISSE_SORTIE"].includes(h.movement_type);
         const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";
@@ -3362,7 +3439,7 @@ $('navigationSave').addEventListener('click',async()=>{
           unitPrice:h.unit_price==null?null:num(h.unit_price),
           total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),
           amount:(isCash||isDeliveryFee)?Math.abs(num(h.cash_delta)):null,
-          cashDelta:num(h.cash_delta),cashBalanceAfter:h.cash_balance_after==null?null:num(h.cash_balance_after),note:h.note||"",
+          cashDelta:num(h.cash_delta),cashBalanceAfter:h.cash_balance_after==null?null:num(h.cash_balance_after),note:formatResourceNote(h.note),
           actorName:h.actor_name||"Utilisateur inconnu"
         };
       });
@@ -3430,7 +3507,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const current=select.value;
     const ingredients=ingredientResources();
     select.innerHTML=ingredients.length
-      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")
+      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")
       : '<option value="">Aucun ingrédient</option>';
     if(ingredients.some(r=>r.id===current))select.value=current;
     fillOrderSuppliers();
@@ -3607,7 +3684,7 @@ $('navigationSave').addEventListener('click',async()=>{
     $("cashBig").textContent=money(state.cash);
     $("dashMonthName").textContent=new Intl.DateTimeFormat("fr-FR",{month:"long",year:"numeric"}).format(new Date());
     const low=[...inventoryStockResources()].sort((a,b)=>num(a.stock)-num(b.stock)).slice(0,6);
-    $("lowStockPanel").innerHTML=low.length?low.map(r=>`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div><strong style="color:#dce7f0">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</strong><div class="hint">${r.kind==="soin"?"Soin fabriqué":"Ingrédient"}</div></div><span class="pill ${num(r.stock)<=5?"red":"gold"}">${num(r.stock)} en stock</span></div>`).join(""):`<div class="empty">Aucune ressource.</div>`;
+    $("lowStockPanel").innerHTML=low.length?low.map(r=>`<div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div><strong style="color:#dce7f0">${esc(resourceNameText(r.name))}</strong><div class="hint">${r.kind==="soin"?"Soin fabriqué":"Ingrédient"}</div></div><span class="pill ${num(r.stock)<=5?"red":"gold"}">${num(r.stock)} en stock</span></div>`).join(""):`<div class="empty">Aucune ressource.</div>`;
     const recent=[...state.history].reverse().slice(0,5);
     $("recentPanel").innerHTML=recent.length?recent.map(h=>`<div style="padding:9px 0;border-bottom:1px solid rgba(91,134,173,.12)"><div style="display:flex;justify-content:space-between;gap:10px"><strong style="color:#dce7f0">${esc(typeLabel(h.type))}</strong><span class="muted">${esc(h.date)}</span></div><div class="hint">${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"Ressource":h.note||"Caisse")}${h.qty?` · ${h.qty}`:""}</div></div>`).join(""):`<div class="empty">Aucun mouvement enregistré.</div>`;
   }
@@ -3616,7 +3693,7 @@ $('navigationSave').addEventListener('click',async()=>{
       .slice().sort((a,b)=>
       String(a.name||"").trim().localeCompare(String(b.name||"").trim(),"fr-FR",{sensitivity:"base",numeric:true})
       || String(a.id||"").localeCompare(String(b.id||"")));
-    $("inventoryBody").innerHTML=inventoryResources.map(r=>`<tr class="${num(r.stock)<=0?"stock-low":""}" data-id="${esc(r.id)}"><td class="resource-name">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</td><td><input class="inv-stock" type="number" min="0" step="0.01" value="${num(r.stock)}"></td><td><div class="currency-input"><input class="inv-price" type="number" min="0" step="0.01" value="${num(r.unitPrice).toFixed(2)}"></div></td><td class="money">${money(num(r.stock)*num(r.unitPrice))}</td><td>${num(r.stock)<=0?'<span class="pill red">Épuisé</span>':num(r.stock)<=5?'<span class="pill red">Faible</span>':'<span class="pill green">Disponible</span>'}</td></tr>`).join("");
+    $("inventoryBody").innerHTML=inventoryResources.map(r=>`<tr class="${num(r.stock)<=0?"stock-low":""}" data-id="${esc(r.id)}"><td class="resource-name">${esc(resourceNameText(r.name))}</td><td><input class="inv-stock" type="number" min="0" step="0.01" value="${num(r.stock)}"></td><td><div class="currency-input"><input class="inv-price" type="number" min="0" step="0.01" value="${num(r.unitPrice).toFixed(2)}"></div></td><td class="money">${money(num(r.stock)*num(r.unitPrice))}</td><td>${num(r.stock)<=0?'<span class="pill red">Épuisé</span>':num(r.stock)<=5?'<span class="pill red">Faible</span>':'<span class="pill green">Disponible</span>'}</td></tr>`).join("");
     $("inventoryCount").textContent=inventoryResources.length+" ressources";
     $("inventoryValue").textContent="Valeur : "+money(inventoryResources.reduce((sum,r)=>sum+num(r.stock)*num(r.unitPrice),0));
   }
@@ -3624,7 +3701,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const current=$("mvResource").value;
     const withdrawal=$("mvType").value==="RETRAIT_STOCK";
     const resources=activeResources().filter(r=>!withdrawal||state.recipes.some(rc=>rc.productId===r.id));
-    $("mvResource").innerHTML=resources.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+
+    $("mvResource").innerHTML=resources.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")+
       (withdrawal?"":'<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>');
     if(resources.some(r=>r.id===current)||(!withdrawal&&current==="__OTHER__"))$("mvResource").value=current;
     $("mvQty").min=withdrawal?"1":"0.01";
@@ -3711,13 +3788,13 @@ $('navigationSave').addEventListener('click',async()=>{
     if(!select)return;
     const ingredients=ingredientResources();
     select.innerHTML=ingredients.length
-      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")
+      ? ingredients.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")
       : '<option value="">Aucun ingrédient</option>';
     $("removeIngredient").disabled=!ingredients.length;
   }
   function renderRecipes(){
     const ingredients=ingredientResources();
-    $("recipeHead").innerHTML="<tr><th>Recette</th><th>Coût fabrication</th>"+ingredients.map(r=>`<th>${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</th>`).join("")+"<th>Action</th></tr>";
+    $("recipeHead").innerHTML="<tr><th>Recette</th><th>Coût fabrication</th>"+ingredients.map(r=>`<th>${esc(resourceNameText(r.name))}</th>`).join("")+"<th>Action</th></tr>";
     $("recipeBody").innerHTML=state.recipes.length?state.recipes.map(rc=>{
       const cost=ingredients.reduce((total,r)=>total+num(rc.ingredients[r.id])*num(r.unitPrice),0);
       return `<tr data-product="${esc(rc.productId)}" data-recipe="${esc(rc.dbId)}"><td><input class="recipe-name" value="${esc(res(rc.productId)?.name||rc.productId)}" aria-label="Nom de la recette"></td><td class="money recipe-cost"><strong>${money(cost)}</strong></td>${ingredients.map(r=>`<td><input type="number" min="0" step="1" data-ing="${esc(r.id)}" value="${num(rc.ingredients[r.id])}"></td>`).join("")}<td><button class="btn danger delete-recipe" type="button" data-product="${esc(rc.productId)}">Retirer</button></td></tr>`;
@@ -4410,7 +4487,7 @@ $('navigationSave').addEventListener('click',async()=>{
       pharmacyItems=(data||[]).filter(item=>
         item.pharmacy_sellable!==false &&
         state.recipes.find(rc=>rc.productId===item.product_resource_id)?.pharmacySellable!==false
-      );
+      ).map(item=>({...item,product_name:resourceNameText(item.product_name||res(item.product_resource_id)?.name||"Recette")}));
       renderPharmacy();
       if($("dashPharmacyValue"))$("dashPharmacyValue").textContent=money(pharmacyStockValue());
     }catch(err){
@@ -4865,14 +4942,14 @@ $('navigationSave').addEventListener('click',async()=>{
   });
   $("addNewRecipe").addEventListener("click",async()=>{
     if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
-    const name=$("newRecipeName").value.trim(),price=Math.max(0,num($("newRecipePrice").value));
+    const name=resourceNameText($("newRecipeName").value),price=Math.max(0,num($("newRecipePrice").value));
     const nonPharmacy=$("newRecipeNonPharmacy")?.checked===true;
     if(!name){toast("Indique le nom de la nouvelle recette.");return;}
     try{
       let product=state.resources.find(r=>r.name.trim().toLowerCase()===name.toLowerCase());
       if(product&&recipe(product.id)){toast("Une recette portant ce nom existe déjà.");return;}
       if(!product){const {data,error}=await db.from("resources").insert({name,category:"produit",unit_price:price,stock:0}).select().single();if(error)throw error;product={id:data.id,name:data.name};}
-      else {const {error}=await db.from("resources").update({active:true,category:"produit",unit_price:price>0?price:product.unitPrice}).eq("id",product.id);if(error)throw error;}
+      else {const {error}=await db.from("resources").update({name,active:true,category:"produit",unit_price:price>0?price:product.unitPrice}).eq("id",product.id);if(error)throw error;}
       const recipeDbName=nonPharmacy?"__NON_PHARMACY__:"+name:name;
       const {error}=await db.from("recipes").insert({name:recipeDbName,product_resource_id:product.id,output_quantity:1});if(error)throw error;
       $("newRecipeName").value="";$("newRecipePrice").value="0";if($("newRecipeNonPharmacy"))$("newRecipeNonPharmacy").checked=false;
@@ -4881,14 +4958,14 @@ $('navigationSave').addEventListener('click',async()=>{
   });
   $("addNewIngredient").addEventListener("click",async()=>{
     if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
-    const name=$("newIngredientName").value.trim(),price=Math.max(0,num($("newIngredientPrice").value));
+    const name=resourceNameText($("newIngredientName").value),price=Math.max(0,num($("newIngredientPrice").value));
     if(!name){toast("Indique le nom du nouvel ingrédient.");return;}
     const existing=state.resources.find(r=>r.name.trim().toLowerCase()===name.toLowerCase());
     if(existing && existing.active!==false){toast("Cette ressource existe déjà.");return;}
     try{
       let error;
       if(existing){
-        ({error}=await db.from("resources").update({active:true,category:"ingredient",unit_price:price}).eq("id",existing.id));
+        ({error}=await db.from("resources").update({name,active:true,category:"ingredient",unit_price:price}).eq("id",existing.id));
       }else{
         ({error}=await db.from("resources").insert({name,category:"ingredient",unit_price:price,stock:0,active:true}));
       }
@@ -4955,7 +5032,7 @@ $('navigationSave').addEventListener('click',async()=>{
         if(!rc)continue;
 
         const currentName=res(rc.productId)?.name||"";
-        const name=tr.querySelector(".recipe-name")?.value.trim()||currentName;
+        const name=resourceNameText(tr.querySelector(".recipe-name")?.value)||currentName;
         const rows=[];
         const nextIngredients={};
 
@@ -5047,7 +5124,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const atPlace=state.suppliers.filter(s=>(s.place||"").trim()===(place||""));
     const available=ingredientResources().filter(r=>isNew||!atPlace.some(s=>s.resourceId===r.id));
     $("supplierAddResource").innerHTML=(isNew?'<option value="">Ajouter les ingrédients ensuite</option>':'<option value="">Choisir un ingrédient…</option>')+
-      available.map(r=>`<option value="${esc(r.id)}">${esc(String(r.name||"").toLocaleUpperCase("fr-FR"))}</option>`).join("")+(isAdmin?'<option value="__new__">＋ Nouvel ingrédient…</option>':"");
+      available.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")+(isAdmin?'<option value="__new__">＋ Nouvel ingrédient…</option>':"");
     $("supplierNewResourceField").hidden=true;$("supplierNewResourceName").value="";$("supplierNewResourceName").required=false;
     const contact=atPlace.find(s=>s.name||s.telegram);
     $("supplierAddName").value=isNew?"":contact?.name||"";
@@ -5120,7 +5197,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const place=$("supplierAddPlace").value.trim();
     let resourceId=$("supplierAddResource").value||null;
     const createResource=resourceId==="__new__";
-    const resourceName=$("supplierNewResourceName").value.trim().toLocaleUpperCase("fr-FR");
+    const resourceName=resourceNameText($("supplierNewResourceName").value);
     const fail=message=>{$("supplierAddError").textContent=message;};
     if(!place){fail("Indique le nom du lieu.");return;}
     if(place.toLocaleLowerCase("fr-FR")==="lieu non renseigné"){fail("Choisis un nom de lieu précis.");return;}
