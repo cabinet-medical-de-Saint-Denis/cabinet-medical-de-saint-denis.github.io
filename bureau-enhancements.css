@@ -291,3 +291,47 @@ html body #notebooksAdmin.view #adminNotebookIndex .admin-notebook-group .admin-
   color:#ffffff !important;
   background:rgba(22,48,70,.82) !important;
 }
+
+
+/* Recettes & ingrédients — noms toujours affichés en MAJUSCULES, y compris les futurs ajouts */
+[data-recipe-name],
+[data-recette-name],
+[data-ingredient-name],
+.recipe-name,
+.recette-name,
+.ingredient-name,
+.recipeName,
+.recetteName,
+.ingredientName,
+[class*="recipe-name" i],
+[class*="recette-name" i],
+[class*="ingredient-name" i],
+[id*="recipe-name" i],
+[id*="recette-name" i],
+[id*="ingredient-name" i],
+select[name*="recipe" i],
+select[name*="recette" i],
+select[name*="ingredient" i],
+select[id*="recipe" i],
+select[id*="recette" i],
+select[id*="ingredient" i],
+select[name*="recipe" i] option,
+select[name*="recette" i] option,
+select[name*="ingredient" i] option,
+select[id*="recipe" i] option,
+select[id*="recette" i] option,
+select[id*="ingredient" i] option,
+input[name*="recipe" i],
+input[name*="recette" i],
+input[name*="ingredient" i],
+input[id*="recipe" i],
+input[id*="recette" i],
+input[id*="ingredient" i],
+[id*="recipes" i] tbody td:first-child,
+[id*="recettes" i] tbody td:first-child,
+[id*="ingredients" i] tbody td:first-child,
+[class*="recipes" i] tbody td:first-child,
+[class*="recettes" i] tbody td:first-child,
+[class*="ingredients" i] tbody td:first-child{
+  text-transform:uppercase !important;
+}
