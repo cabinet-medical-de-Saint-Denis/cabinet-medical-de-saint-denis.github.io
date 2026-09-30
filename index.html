@@ -1574,6 +1574,12 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   min-width:0;
 }
 .card > .card-body{flex:1;container-type:inline-size}
+/* Le tchat reste entièrement dans la zone libre du parchemin. */
+#bureau .bureau-shell{flex:none}
+#bureau .bureau-messages{min-height:0}
+#bureau .bureau-intro,
+#bureau .bureau-typing,
+#bureau .bureau-composer{flex-shrink:0}
 .card .table-wrap,
 .sd-orders-overview-table{
   background:transparent!important;
@@ -2235,7 +2241,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
     <section id="bureau" class="view">
       <div class="card">
         <h3 class="section-title">LE BUREAU <small>salon privé du personnel médical</small></h3>
-        <div class="bureau-shell">
+        <div class="bureau-shell card-body">
           <div class="bureau-intro">
             <strong>Discussion du cabinet</strong>
             <span>Messages, images, GIFs et fichiers · 20 Mo maximum</span>
