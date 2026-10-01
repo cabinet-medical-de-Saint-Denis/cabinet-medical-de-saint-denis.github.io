@@ -3345,8 +3345,12 @@ $('navigationSave').addEventListener('click',async()=>{
   document.querySelectorAll("#nav button,#privateNav button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
   document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.goto)));
 
-  async function loadRemoteState(silent=false){
-    if(!currentUser || isRefreshing)return;
+  async function loadRemoteState(silent=false,waitForCurrent=false){
+    if(!currentUser)return;
+    if(isRefreshing){
+      if(!waitForCurrent)return;
+      while(isRefreshing) await new Promise(resolve=>setTimeout(resolve,50));
+    }
     isRefreshing=true;
     if(!silent)setSync("Synchronisation…","busy");
     try{
@@ -4941,7 +4945,7 @@ $('navigationSave').addEventListener('click',async()=>{
   $("resetCraft").addEventListener("click",()=>{if(state.recipes[0])$("craftRecipe").value=state.recipes[0].productId;$("craftQty").value=1;renderCraft();toast("Zone de fabrication réinitialisée.");});
   $("craftButton").addEventListener("click",async()=>{
     const rc=recipe($("craftRecipe").value),qty=Math.max(1,parseInt($("craftQty").value||1,10));if(!rc)return;
-    try{const {error}=await db.rpc("craft_recipe",{p_recipe_id:rc.dbId,p_quantity:qty});if(error)throw error;await loadRemoteState();renderCraft();toast(`${qty} ${res(rc.productId)?.name||"produit"} fabriqué(s).`);}catch(err){dbError(err);}
+    try{const {error}=await db.rpc("craft_recipe",{p_recipe_id:rc.dbId,p_quantity:qty});if(error)throw error;await loadRemoteState(false,true);renderCraft();toast(`${qty} ${res(rc.productId)?.name||"produit"} fabriqué(s).`);}catch(err){dbError(err);}
   });
   $("addNewRecipe").addEventListener("click",async()=>{
     if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
