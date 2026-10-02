@@ -3738,8 +3738,11 @@ $('navigationSave').addEventListener('click',async()=>{
   }
 
   function projectedIngredientNeed(resourceId,currentRecipeId,currentQty){
-    const rc=state.recipes.find(r=>r.dbId===currentRecipeId);
-    return num(rc?.ingredients?.[resourceId])*num(currentQty);
+    return state.recipes.reduce((total,rc)=>{
+      const saved=plannedRecipeQty(rc.dbId);
+      const planned=rc.dbId===currentRecipeId ? num(currentQty) : saved;
+      return total + num(rc.ingredients?.[resourceId]) * planned;
+    },0);
   }
 
   function renderCraft(){
@@ -3786,7 +3789,7 @@ $('navigationSave').addEventListener('click',async()=>{
 
       return `<tr><td class="resource-name">${esc(r?.name||id)}</td><td>${num(per)}</td><td><strong>${need}</strong></td><td>${have}</td><td><div class="progress"><span class="${stockMissing>0?"short":""}" style="width:${ratio}%"></span></div><div class="hint">${esc(availability)} · ${have}/${STOCK_BAR_MAX}</div></td><td class="craft-order-cell ${missing>0?"bad":"good"}">${orderCell}</td></tr>`;
     }).join("");
-    $("craftDescription").innerHTML=`Fabrication de <strong>${qty} ${esc(product?.name||rc.productId)}</strong>. Les besoins correspondent uniquement à cette fabrication. Le stock et les commandes « À commander » et « En cours » sont déduits.`;
+    $("craftDescription").innerHTML=`Fabrication de <strong>${qty} ${esc(product?.name||rc.productId)}</strong>. Les besoins cumulent cette fabrication et les autres fabrications déjà prévues qui utilisent les mêmes ingrédients. Le stock et les commandes « À commander » et « En cours » sont déduits.`;
     $("craftButton").disabled=!allOk||!rows.length;
     $("orderCraftButton").disabled=!rows.length;
   }
