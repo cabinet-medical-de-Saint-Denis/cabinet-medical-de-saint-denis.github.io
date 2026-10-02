@@ -3707,7 +3707,7 @@ $('navigationSave').addEventListener('click',async()=>{
   function fillMovementResources(){
     const current=$("mvResource").value;
     const withdrawal=$("mvType").value==="RETRAIT_STOCK";
-    const resources=activeResources().filter(r=>!withdrawal||state.recipes.some(rc=>rc.productId===r.id));
+    const resources=activeResources().filter(r=>r.kind==="ingredient" || state.recipes.some(rc=>rc.productId===r.id)).filter(r=>!withdrawal||state.recipes.some(rc=>rc.productId===r.id));
     $("mvResource").innerHTML=resources.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")+
       (withdrawal?"":'<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>');
     if(resources.some(r=>r.id===current)||(!withdrawal&&current==="__OTHER__"))$("mvResource").value=current;
