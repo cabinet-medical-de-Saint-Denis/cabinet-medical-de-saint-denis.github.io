@@ -4958,12 +4958,47 @@ $('navigationSave').addEventListener('click',async()=>{
     try{
       let product=state.resources.find(r=>r.name.trim().toLowerCase()===name.toLowerCase());
       if(product&&recipe(product.id)){toast("Une recette portant ce nom existe déjà.");return;}
-      if(!product){const {data,error}=await db.from("resources").insert({name,category:"produit",unit_price:price,stock:0}).select().single();if(error)throw error;product={id:data.id,name:data.name};}
-      else {const {error}=await db.from("resources").update({name,active:true,category:"produit",unit_price:price>0?price:product.unitPrice}).eq("id",product.id);if(error)throw error;}
+      if(!product){
+        const {data,error}=await db.from("resources").insert({name,category:"produit",unit_price:price,stock:0,active:true}).select().single();
+        if(error)throw error;
+        product={id:data.id,name:data.name,unitPrice:num(data.unit_price),active:true};
+      }else{
+        const {error}=await db.from("resources").update({name,active:true,category:"produit",unit_price:price>0?price:product.unitPrice}).eq("id",product.id);
+        if(error)throw error;
+      }
+
       const recipeDbName=nonPharmacy?"__NON_PHARMACY__:"+name:name;
-      const {error}=await db.from("recipes").insert({name:recipeDbName,product_resource_id:product.id,output_quantity:1});if(error)throw error;
-      $("newRecipeName").value="";$("newRecipePrice").value="0";if($("newRecipeNonPharmacy"))$("newRecipeNonPharmacy").checked=false;
-      await loadRemoteState();$("craftRecipe").value=product.id;renderCraft();toast(`Recette « ${name} » ajoutée${nonPharmacy?" · non vendue en pharmacie":""}.`);
+      const {data:oldRecipes,error:lookupError}=await db.from("recipes")
+        .select("id,active")
+        .eq("product_resource_id",product.id)
+        .limit(1);
+      if(lookupError)throw lookupError;
+
+      const oldRecipe=oldRecipes?.[0]||null;
+      let reactivated=false;
+      if(oldRecipe){
+        if(oldRecipe.active===true){toast("Une recette portant ce nom existe déjà.");return;}
+        const {error}=await db.from("recipes")
+          .update({name:recipeDbName,active:true,output_quantity:1})
+          .eq("id",oldRecipe.id);
+        if(error)throw error;
+        const reset=await db.rpc("reset_fabrication_plan",{p_recipe_id:oldRecipe.id});
+        if(reset.error)throw reset.error;
+        reactivated=true;
+      }else{
+        const {error}=await db.from("recipes").insert({name:recipeDbName,product_resource_id:product.id,output_quantity:1,active:true});
+        if(error)throw error;
+      }
+
+      $("newRecipeName").value="";
+      $("newRecipePrice").value="0";
+      if($("newRecipeNonPharmacy"))$("newRecipeNonPharmacy").checked=false;
+      await loadRemoteState();
+      $("craftRecipe").value=product.id;
+      renderCraft();
+      toast(reactivated
+        ? `Recette « ${name} » réactivée${nonPharmacy?" · non vendue en pharmacie":""}.`
+        : `Recette « ${name} » ajoutée${nonPharmacy?" · non vendue en pharmacie":""}.`);
     }catch(err){dbError(err);}
   });
   $("addNewIngredient").addEventListener("click",async()=>{
