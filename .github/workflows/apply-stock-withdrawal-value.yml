@@ -1,0 +1,108 @@
+name: Apply Saint-Denis stock withdrawal value fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-stock-withdrawal-value.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch stock withdrawal handling
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("index.html")
+          s = path.read_text(encoding="utf-8")
+          original = s
+
+          def replace_once(old, new, label):
+              global s
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected 1 occurrence, found {count}")
+              s = s.replace(old, new, 1)
+
+          replace_once(
+              '        const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";\n        return {',
+              '        const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";\n        const isStockWithdrawal=h.movement_type==="RETRAIT_STOCK";\n        const withdrawalUnitCost=isStockWithdrawal?recipeUnitCost(h.resource_id):null;\n        return {',
+              "history withdrawal flags"
+          )
+
+          replace_once(
+              '          unitPrice:h.unit_price==null?null:num(h.unit_price),\n          total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),',
+              '          unitPrice:isStockWithdrawal?withdrawalUnitCost:(h.unit_price==null?null:num(h.unit_price)),\n          total:isStockWithdrawal?Math.abs(num(h.quantity_delta))*withdrawalUnitCost:(h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price)),',
+              "history withdrawal totals"
+          )
+
+          replace_once(
+              '    $("mvTotal").closest(".field").querySelector("label").textContent=withdrawal?"Caisse":"Total";',
+              '    $("mvTotal").closest(".field").querySelector("label").textContent="Total";',
+              "movement total label"
+          )
+
+          replace_once(
+              '  function syncMovementPrice(){',
+              '''  function recipeUnitCost(productId){
+    const rc=state.recipes.find(r=>r.productId===productId);
+    if(!rc)return 0;
+    return Object.entries(rc.ingredients||{}).reduce((total,[ingredientId,quantity])=>{
+      return total + num(quantity)*num(res(ingredientId)?.unitPrice);
+    },0);
+  }
+  function syncMovementPrice(){''',
+              "recipe cost helper"
+          )
+
+          replace_once(
+              '    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);\n    calcMovementTotal();',
+              '''    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);
+    const bankNote="à remettre à la banque du cabinet";
+    if(withdrawal){
+      $("mvNote").value=bankNote;
+      $("mvNote").readOnly=true;
+    }else{
+      if($("mvNote").value===bankNote)$("mvNote").value="";
+      $("mvNote").readOnly=false;
+    }
+    calcMovementTotal();''',
+              "withdrawal bank note"
+          )
+
+          replace_once(
+              '    $("mvTotal").value=$("mvType").value==="RETRAIT_STOCK"?"Aucun mouvement d’argent":money(num($("mvQty").value)*num($("mvPrice").value));',
+              '''    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const qty=num($("mvQty").value);
+    const unitCost=withdrawal?recipeUnitCost($("mvResource").value):num($("mvPrice").value);
+    $("mvTotal").value=money(qty*unitCost);''',
+              "withdrawal displayed total"
+          )
+
+          replace_once(
+              '    const note=$("mvNote").value.trim();',
+              '    const note=type==="RETRAIT_STOCK"?"à remettre à la banque du cabinet":$("mvNote").value.trim();',
+              "withdrawal saved note"
+          )
+
+          if s == original:
+              raise SystemExit("No changes made")
+          path.write_text(s, encoding="utf-8")
+
+      - name: Commit patch and remove one-shot workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/apply-stock-withdrawal-value.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/apply-stock-withdrawal-value.yml
+          git commit -m "Afficher la valeur des retraits de stock sans mouvement de caisse"
+          git push
