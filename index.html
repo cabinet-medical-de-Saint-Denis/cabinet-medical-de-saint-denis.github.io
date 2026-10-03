@@ -3444,6 +3444,8 @@ $('navigationSave').addEventListener('click',async()=>{
       state.history=(movements.data||[]).map(h=>{
         const isCash=["CAISSE_ENTREE","CAISSE_SORTIE"].includes(h.movement_type);
         const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";
+        const isStockWithdrawal=h.movement_type==="RETRAIT_STOCK";
+        const withdrawalUnitCost=isStockWithdrawal?recipeUnitCost(h.resource_id):null;
         return {
           id:h.id,
           date:h.effective_date||String(h.created_at||"").slice(0,10),
@@ -3452,8 +3454,8 @@ $('navigationSave').addEventListener('click',async()=>{
           resourceId:h.resource_id,
           resourceName:h.resource_id?res(h.resource_id)?.name||"Ressource":(isCash?"Caisse":"Autre"),
           qty:isDeliveryFee?null:(h.resource_id||!isCash)?num(h.quantity_delta):null,
-          unitPrice:h.unit_price==null?null:num(h.unit_price),
-          total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),
+          unitPrice:isStockWithdrawal?withdrawalUnitCost:(h.unit_price==null?null:num(h.unit_price)),
+          total:isStockWithdrawal?Math.abs(num(h.quantity_delta))*withdrawalUnitCost:(h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price)),
           amount:(isCash||isDeliveryFee)?Math.abs(num(h.cash_delta)):null,
           cashDelta:num(h.cash_delta),cashBalanceAfter:h.cash_balance_after==null?null:num(h.cash_balance_after),note:formatResourceNote(h.note),
           actorName:h.actor_name||"Utilisateur inconnu"
@@ -3727,17 +3729,35 @@ $('navigationSave').addEventListener('click',async()=>{
     $("mvQty").step=withdrawal?"1":"0.01";
     $("mvPrice").disabled=withdrawal;
     $("mvPrice").closest(".field").style.display=withdrawal?"none":"";
-    $("mvTotal").closest(".field").querySelector("label").textContent=withdrawal?"Caisse":"Total";
+    $("mvTotal").closest(".field").querySelector("label").textContent="Total";
     syncMovementPrice();
+  }
+  function recipeUnitCost(productId){
+    const rc=state.recipes.find(r=>r.productId===productId);
+    if(!rc)return 0;
+    return Object.entries(rc.ingredients||{}).reduce((total,[ingredientId,quantity])=>{
+      return total + num(quantity)*num(res(ingredientId)?.unitPrice);
+    },0);
   }
   function syncMovementPrice(){
     const withdrawal=$("mvType").value==="RETRAIT_STOCK";
     const r=res($("mvResource").value);
     $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);
+    const bankNote="à remettre à la banque du cabinet";
+    if(withdrawal){
+      $("mvNote").value=bankNote;
+      $("mvNote").readOnly=true;
+    }else{
+      if($("mvNote").value===bankNote)$("mvNote").value="";
+      $("mvNote").readOnly=false;
+    }
     calcMovementTotal();
   }
   function calcMovementTotal(){
-    $("mvTotal").value=$("mvType").value==="RETRAIT_STOCK"?"Aucun mouvement d’argent":money(num($("mvQty").value)*num($("mvPrice").value));
+    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const qty=num($("mvQty").value);
+    const unitCost=withdrawal?recipeUnitCost($("mvResource").value):num($("mvPrice").value);
+    $("mvTotal").value=money(qty*unitCost);
   }
   function outstandingOrderQty(resourceId){
     return state.orders
@@ -4869,7 +4889,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const isOther=$("mvResource").value==="__OTHER__";
     const resource=isOther?null:res($("mvResource").value);
     const type=$("mvType").value,qty=num($("mvQty").value),price=num($("mvPrice").value),total=qty*price;
-    const note=$("mvNote").value.trim();
+    const note=type==="RETRAIT_STOCK"?"à remettre à la banque du cabinet":$("mvNote").value.trim();
     if((!isOther&&!resource)||qty<=0){toast("Indique une ressource et une quantité valide.");return;}
     if(isOther&&!note){toast("Pour « Autre », indique obligatoirement le motif dans la note.");$("mvNote").focus();return;}
     if(type==="RETRAIT_STOCK"&&(!resource||!state.recipes.some(rc=>rc.productId===resource.id)||!Number.isInteger(qty))){
