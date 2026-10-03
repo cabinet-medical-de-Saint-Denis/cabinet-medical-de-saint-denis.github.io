@@ -17,10 +17,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Patch stock withdrawal handling
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
-
           path = Path("index.html")
           s = path.read_text(encoding="utf-8")
           original = s
@@ -37,66 +37,39 @@ jobs:
               '        const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";\n        const isStockWithdrawal=h.movement_type==="RETRAIT_STOCK";\n        const withdrawalUnitCost=isStockWithdrawal?recipeUnitCost(h.resource_id):null;\n        return {',
               "history withdrawal flags"
           )
-
           replace_once(
               '          unitPrice:h.unit_price==null?null:num(h.unit_price),\n          total:h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price),',
               '          unitPrice:isStockWithdrawal?withdrawalUnitCost:(h.unit_price==null?null:num(h.unit_price)),\n          total:isStockWithdrawal?Math.abs(num(h.quantity_delta))*withdrawalUnitCost:(h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price)),',
               "history withdrawal totals"
           )
-
           replace_once(
               '    $("mvTotal").closest(".field").querySelector("label").textContent=withdrawal?"Caisse":"Total";',
               '    $("mvTotal").closest(".field").querySelector("label").textContent="Total";',
               "movement total label"
           )
-
-          replace_once(
-              '  function syncMovementPrice(){',
-              '''  function recipeUnitCost(productId){
-    const rc=state.recipes.find(r=>r.productId===productId);
-    if(!rc)return 0;
-    return Object.entries(rc.ingredients||{}).reduce((total,[ingredientId,quantity])=>{
-      return total + num(quantity)*num(res(ingredientId)?.unitPrice);
-    },0);
-  }
-  function syncMovementPrice(){''',
-              "recipe cost helper"
-          )
-
+          helper = '  function recipeUnitCost(productId){\n    const rc=state.recipes.find(r=>r.productId===productId);\n    if(!rc)return 0;\n    return Object.entries(rc.ingredients||{}).reduce((total,[ingredientId,quantity])=>{\n      return total + num(quantity)*num(res(ingredientId)?.unitPrice);\n    },0);\n  }\n  function syncMovementPrice(){'
+          replace_once('  function syncMovementPrice(){', helper, "recipe cost helper")
+          note_block = '    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);\n    const bankNote="à remettre à la banque du cabinet";\n    if(withdrawal){\n      $("mvNote").value=bankNote;\n      $("mvNote").readOnly=true;\n    }else{\n      if($("mvNote").value===bankNote)$("mvNote").value="";\n      $("mvNote").readOnly=false;\n    }\n    calcMovementTotal();'
           replace_once(
               '    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);\n    calcMovementTotal();',
-              '''    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);
-    const bankNote="à remettre à la banque du cabinet";
-    if(withdrawal){
-      $("mvNote").value=bankNote;
-      $("mvNote").readOnly=true;
-    }else{
-      if($("mvNote").value===bankNote)$("mvNote").value="";
-      $("mvNote").readOnly=false;
-    }
-    calcMovementTotal();''',
+              note_block,
               "withdrawal bank note"
           )
-
+          total_block = '    const withdrawal=$("mvType").value==="RETRAIT_STOCK";\n    const qty=num($("mvQty").value);\n    const unitCost=withdrawal?recipeUnitCost($("mvResource").value):num($("mvPrice").value);\n    $("mvTotal").value=money(qty*unitCost);'
           replace_once(
               '    $("mvTotal").value=$("mvType").value==="RETRAIT_STOCK"?"Aucun mouvement d’argent":money(num($("mvQty").value)*num($("mvPrice").value));',
-              '''    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
-    const qty=num($("mvQty").value);
-    const unitCost=withdrawal?recipeUnitCost($("mvResource").value):num($("mvPrice").value);
-    $("mvTotal").value=money(qty*unitCost);''',
+              total_block,
               "withdrawal displayed total"
           )
-
           replace_once(
               '    const note=$("mvNote").value.trim();',
               '    const note=type==="RETRAIT_STOCK"?"à remettre à la banque du cabinet":$("mvNote").value.trim();',
               "withdrawal saved note"
           )
-
           if s == original:
               raise SystemExit("No changes made")
           path.write_text(s, encoding="utf-8")
-
+          PY
       - name: Commit patch and remove one-shot workflow
         shell: bash
         run: |
