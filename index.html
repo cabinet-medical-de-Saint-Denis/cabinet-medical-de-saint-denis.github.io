@@ -5116,7 +5116,7 @@ $('navigationSave').addEventListener('click',async()=>{
         if(nameChanged){
           q=await db.from("resources").update({name}).eq("id",rc.productId);
           if(q.error)throw q.error;
-          const recipeDbName=rc.pharmacySellable===false?"__NON_PHARMACY__:"+name:name;
+          const recipeDbName=(rc.pharmacySellable===false?"__NON_PHARMACY__:":"")+(rc.quickStock===false?"__NO_QUICK_STOCK__:":"")+name;
           q=await db.from("recipes").update({name:recipeDbName}).eq("id",rc.dbId);
           if(q.error)throw q.error;
         }
