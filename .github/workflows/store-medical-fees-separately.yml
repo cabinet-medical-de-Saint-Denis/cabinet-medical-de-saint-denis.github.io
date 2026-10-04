@@ -1,0 +1,32 @@
+name: Store Saint-Denis medical fees outside history
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/store-medical-fees-separately.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch site
+        run: |
+          python .github/scripts/store_medical_fees_separately.py
+          grep -q 'db.rpc("add_medical_fee_usage"' index.html
+          grep -q 'db.rpc("get_medical_fee_usage"' index.html
+          grep -q 'db.rpc("admin_reset_medical_fee_usage"' index.html
+          if grep -q 'p_movement_type:"FRAIS_MEDICAUX"' index.html; then echo "Old medical movement write still present"; exit 1; fi
+      - name: Commit
+        run: |
+          rm -f .github/workflows/store-medical-fees-separately.yml
+          rm -f .github/scripts/store_medical_fees_separately.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/store-medical-fees-separately.yml .github/scripts/store_medical_fees_separately.py
+          git commit -m "Enregistrer les frais médicaux hors historique"
+          git push
