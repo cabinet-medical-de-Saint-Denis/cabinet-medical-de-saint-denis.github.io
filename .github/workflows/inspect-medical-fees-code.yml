@@ -1,0 +1,32 @@
+name: Inspect medical fees code
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-medical-fees-code.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show relevant code
+        run: |
+          echo "=== markers ==="
+          grep -n "medicalFeeResetMarker\|renderMedicalFeesTable\|resetMedicalFees\|FRAIS_MEDICAUX" index.html | head -80
+          echo "=== functions area ==="
+          n=$(grep -n "function medicalFeeResetMarker" index.html | head -1 | cut -d: -f1); if [ -n "$n" ]; then sed -n "$((n-20)),$((n+180))p" index.html; fi
+          echo "=== submit area ==="
+          n=$(grep -n 'movementForm.*addEventListener\|\$("movementForm").*addEventListener' index.html | head -1 | cut -d: -f1); if [ -n "$n" ]; then sed -n "$((n-10)),$((n+130))p" index.html; fi
+      - name: Remove workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/inspect-medical-fees-code.yml
+          git add .github/workflows/inspect-medical-fees-code.yml
+          git commit -m "Retirer inspection frais médicaux temporaire"
+          git push
