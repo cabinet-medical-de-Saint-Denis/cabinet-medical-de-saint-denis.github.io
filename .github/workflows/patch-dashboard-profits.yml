@@ -1,0 +1,172 @@
+name: Patch dashboard profits
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply dashboard profit patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
+
+          if 'id="dashCabinetProfitWeek"' in text and 'id="dashMonthProfit"' in text:
+              print("Patch already present.")
+              raise SystemExit(0)
+
+          def card_bounds(source, label):
+              marker = f'<div class="label">{label}</div>'
+              pos = source.find(marker)
+              if pos < 0:
+                  raise RuntimeError(f"Card label not found: {label}")
+              start = source.rfind('<div class="card metric', 0, pos)
+              if start < 0:
+                  raise RuntimeError(f"Card start not found: {label}")
+              token_re = re.compile(r'<div\b|</div>')
+              depth = 0
+              for m in token_re.finditer(source, start):
+                  if m.group(0).startswith('<div'):
+                      depth += 1
+                  else:
+                      depth -= 1
+                      if depth == 0:
+                          return start, m.end()
+              raise RuntimeError(f"Card end not found: {label}")
+
+          def replace_card(source, label, transform):
+              start, end = card_bounds(source, label)
+              card = source[start:end]
+              new_card = transform(card)
+              if new_card == card:
+                  raise RuntimeError(f"No change produced for card: {label}")
+              return source[:start] + new_card + source[end:]
+
+          def stock_to_profit(card):
+              card = card.replace('<div class="label">Valeur du stock</div>', '<div class="label">PROFITS DU CABINET</div>', 1)
+              card = card.replace('id="dashStockValue"', 'id="dashCabinetProfitWeek"', 1)
+              card = re.sub(r'<div class="sub">Selon les prix unitaires actuels</div>',
+                            '<div class="sub">Ventes pharmacie − coût de fabrication · semaine en cours</div>',
+                            card, count=1)
+              return card
+
+          text = replace_card(text, "Valeur du stock", stock_to_profit)
+
+          def cabinet_add_stock(card):
+              if 'id="dashStockValue"' in card:
+                  return card
+              insert = '<div class="sub">Valeur du stock : <strong id="dashStockValue">0,00 $</strong></div>'
+              idx = card.rfind('</div>')
+              return card[:idx] + insert + '\n' + card[idx:]
+
+          text = replace_card(text, "Valeur du cabinet", cabinet_add_stock)
+
+          def expenses_add_profit(card):
+              if 'id="dashMonthProfit"' in card:
+                  return card
+              insert = '<div class="sub">Profits du mois : <strong id="dashMonthProfit">0,00 $</strong></div>'
+              idx = card.rfind('</div>')
+              return card[:idx] + insert + '\n' + card[idx:]
+
+          text = replace_card(text, "Dépenses du mois", expenses_add_profit)
+
+          month_fn = '''  function monthExpenses(){
+            const ym=todayISO().slice(0,7);
+            return state.history.filter(h=>String(h.date||"").startsWith(ym) && (h.type==="ACHAT"||h.type==="CAISSE_SORTIE"||h.type==="FRAIS_LIVRAISON"))
+              .reduce((a,h)=>a+Math.max(0,-num(h.cashDelta)),0);
+          }'''
+          if month_fn not in text:
+              raise RuntimeError("monthExpenses function not found in expected form")
+
+          profit_fns = month_fn + '''
+          function pharmacySaleProfit(h){
+            if(h?.type!=="PHARMACIE_VENTE")return 0;
+            const soldQty=Math.abs(num(h.qty));
+            const revenue=Math.max(0,num(h.cashDelta));
+            const fabricationCost=soldQty*recipeUnitCost(h.resourceId);
+            return revenue-fabricationCost;
+          }
+          function monthPharmacyProfit(){
+            const ym=todayISO().slice(0,7);
+            return state.history
+              .filter(h=>h.type==="PHARMACIE_VENTE" && String(h.date||"").startsWith(ym))
+              .reduce((total,h)=>total+pharmacySaleProfit(h),0);
+          }
+          function weekPharmacyProfit(){
+            const today=new Date(todayISO()+"T12:00:00");
+            const monday=new Date(today);
+            monday.setDate(today.getDate()-((today.getDay()+6)%7));
+            const sunday=new Date(monday);
+            sunday.setDate(monday.getDate()+6);
+            const toISO=d=>[
+              d.getFullYear(),
+              String(d.getMonth()+1).padStart(2,"0"),
+              String(d.getDate()).padStart(2,"0")
+            ].join("-");
+            const start=toISO(monday),end=toISO(sunday);
+            return state.history
+              .filter(h=>h.type==="PHARMACIE_VENTE" && String(h.date||"")>=start && String(h.date||"")<=end)
+              .reduce((total,h)=>total+pharmacySaleProfit(h),0);
+          }'''
+          text = text.replace(month_fn, profit_fns, 1)
+
+          old_render = '''    $("dashCash").textContent=money(state.cash);
+              $("dashStockValue").textContent=money(stockValue());
+              $("dashPharmacyValue").textContent=money(pharmacyStockValue());
+              $("dashCabinetValue").textContent=money(state.cash+stockValue());
+              $("dashMonthExpenses").textContent=money(monthExpenses());
+              $("cashBig").textContent=money(state.cash);'''
+          if old_render not in text:
+              raise RuntimeError("Dashboard render block not found in expected form")
+
+          new_render = '''    $("dashCash").textContent=money(state.cash);
+              $("dashCabinetProfitWeek").textContent=money(weekPharmacyProfit());
+              $("dashPharmacyValue").textContent=money(pharmacyStockValue());
+              $("dashCabinetValue").textContent=money(state.cash+stockValue());
+              $("dashStockValue").textContent=money(stockValue());
+              $("dashMonthExpenses").textContent=money(monthExpenses());
+              $("dashMonthProfit").textContent=money(monthPharmacyProfit());
+              $("cashBig").textContent=money(state.cash);'''
+          text = text.replace(old_render, new_render, 1)
+
+          required = [
+              'id="dashCabinetProfitWeek"',
+              'id="dashStockValue"',
+              'id="dashMonthProfit"',
+              'function weekPharmacyProfit()',
+              'function monthPharmacyProfit()'
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise RuntimeError("Missing after patch: " + ", ".join(missing))
+
+          path.write_text(text, encoding="utf-8")
+          print("Saint-Denis dashboard profit patch applied.")
+          PY
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Ajoute les profits pharmacie au tableau de bord"
+          git push
