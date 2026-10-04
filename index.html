@@ -1754,9 +1754,9 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           <div class="sub">Argent disponible</div>
         </div>
         <div class="card metric">
-          <div class="label">Valeur du stock</div>
-          <div class="value" id="dashStockValue">0,00 $</div>
-          <div class="sub">Selon les prix unitaires actuels</div>
+          <div class="label">PROFITS DU CABINET</div>
+          <div class="value" id="dashCabinetProfitWeek">0,00 $</div>
+          <div class="sub">Ventes pharmacie − coût de fabrication · semaine en cours</div>
         </div>
         <div class="card metric">
           <div class="label">Valeur pharmacie</div>
@@ -1767,12 +1767,14 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           <div class="label">Valeur du cabinet</div>
           <div class="value" id="dashCabinetValue">0,00 $</div>
           <div class="sub">Caisse + valeur du stock</div>
-        </div>
+        <div class="sub">Valeur du stock : <strong id="dashStockValue">0,00 $</strong></div>
+</div>
         <div class="card metric">
           <div class="label">Dépenses du mois</div>
           <div class="value" id="dashMonthExpenses">0,00 $</div>
           <div class="sub" id="dashMonthName">Mois en cours</div>
-        </div>
+        <div class="sub">Profits du mois : <strong id="dashMonthProfit">0,00 $</strong></div>
+</div>
       </div>
 
       <div class="dashboard-three">
@@ -2832,6 +2834,36 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
       .reduce((a,h)=>a+Math.max(0,-num(h.cashDelta)),0);
   }
 
+function pharmacySaleProfit(h){
+  if(h?.type!=="PHARMACIE_VENTE")return 0;
+  const soldQty=Math.abs(num(h.qty));
+  const revenue=Math.max(0,num(h.cashDelta));
+  const fabricationCost=soldQty*recipeUnitCost(h.resourceId);
+  return revenue-fabricationCost;
+}
+function monthPharmacyProfit(){
+  const ym=todayISO().slice(0,7);
+  return state.history
+    .filter(h=>h.type==="PHARMACIE_VENTE" && String(h.date||"").startsWith(ym))
+    .reduce((total,h)=>total+pharmacySaleProfit(h),0);
+}
+function weekPharmacyProfit(){
+  const today=new Date(todayISO()+"T12:00:00");
+  const monday=new Date(today);
+  monday.setDate(today.getDate()-((today.getDay()+6)%7));
+  const sunday=new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+  const toISO=d=>[
+    d.getFullYear(),
+    String(d.getMonth()+1).padStart(2,"0"),
+    String(d.getDate()).padStart(2,"0")
+  ].join("-");
+  const start=toISO(monday),end=toISO(sunday);
+  return state.history
+    .filter(h=>h.type==="PHARMACIE_VENTE" && String(h.date||"")>=start && String(h.date||"")<=end)
+    .reduce((total,h)=>total+pharmacySaleProfit(h),0);
+}
+
 // Cabinet de Saint-Denis — chaque utilisateur possède son propre carnet, créé depuis le modèle de base.
 const isBookSupervisor=()=>isAdmin;
 const canEditBook=()=>!!currentUser && currentProfile?.access_status==="approved";
@@ -3724,10 +3756,12 @@ $('navigationSave').addEventListener('click',async()=>{
     renderSaintOrdersOverview();
     renderRecipePricing();
     $("dashCash").textContent=money(state.cash);
-    $("dashStockValue").textContent=money(stockValue());
+    $("dashCabinetProfitWeek").textContent=money(weekPharmacyProfit());
     $("dashPharmacyValue").textContent=money(pharmacyStockValue());
     $("dashCabinetValue").textContent=money(state.cash+stockValue());
+    $("dashStockValue").textContent=money(stockValue());
     $("dashMonthExpenses").textContent=money(monthExpenses());
+    $("dashMonthProfit").textContent=money(monthPharmacyProfit());
     $("cashBig").textContent=money(state.cash);
     $("dashMonthName").textContent=new Intl.DateTimeFormat("fr-FR",{month:"long",year:"numeric"}).format(new Date());
     const low=[...inventoryStockResources()]
