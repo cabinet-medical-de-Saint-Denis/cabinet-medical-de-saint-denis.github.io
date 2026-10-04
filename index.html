@@ -3934,66 +3934,41 @@ $('navigationSave').addEventListener('click',async()=>{
       return header+rows;
     }).join("");
   }
-  function medicalFeeResetMarker(name){
-    return "__MEDICAL_FEES_RESET__:"+encodeURIComponent(String(name||"").trim());
-  }
-  function medicalFeeDoctorNamesFromHistory(){
-    const names=new Set();
-    state.history.forEach(h=>{
-      if(h.type==="FRAIS_MEDICAUX" && h.actorName)names.add(String(h.actorName).trim());
-    });
-    if(currentProfile?.display_name)names.add(String(currentProfile.display_name).trim());
-    return [...names].filter(Boolean);
-  }
   async function loadMedicalFeeDoctors(force=false){
     if(medicalFeeDoctorsLoaded&&!force){renderMedicalFeesTable();return;}
-    const names=new Set(medicalFeeDoctorNamesFromHistory());
-    if(isAdmin){
-      try{
-        const {data,error}=await db.rpc("admin_list_profiles");
-        if(error)throw error;
-        (data||[]).filter(u=>u.access_status==="approved").forEach(u=>{
-          if(u.display_name)names.add(String(u.display_name).trim());
-        });
-      }catch(err){console.warn("Liste des docteurs pour frais médicaux :",err);}
+    try{
+      const {data,error}=await db.rpc("get_medical_fee_usage");
+      if(error)throw error;
+      medicalFeeDoctors=(data||[]).map(row=>({
+        userId:row.user_id,
+        name:String(row.display_name||"Sans nom").trim()||"Sans nom",
+        kits:num(row.kit_count),
+        syringes:num(row.syringe_count),
+        total:num(row.bank_amount)
+      })).sort((a,b)=>a.name.localeCompare(b.name,"fr-FR",{sensitivity:"base"}));
+      medicalFeeDoctorsLoaded=true;
+      renderMedicalFeesTable();
+    }catch(err){
+      console.warn("Suivi des frais médicaux :",err);
+      const body=$("medicalFeesBody");
+      if(body)body.innerHTML='<tr><td colspan="5" class="empty">Impossible de charger le suivi des frais médicaux.</td></tr>';
     }
-    medicalFeeDoctors=[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
-    medicalFeeDoctorsLoaded=true;
-    renderMedicalFeesTable();
   }
-  function medicalFeeSummaryForDoctor(name){
-    const marker=medicalFeeResetMarker(name);
-    let start=-1;
-    state.history.forEach((h,index)=>{
-      if(h.type==="FRAIS_MEDICAUX_RESET" && h.note===marker)start=index;
-    });
-    let kits=0,syringes=0,total=0;
-    state.history.slice(start+1).forEach(h=>{
-      if(h.type!=="FRAIS_MEDICAUX" || String(h.actorName||"").trim()!==name)return;
-      const resource=h.resourceId?res(h.resourceId):null;
-      const resourceName=normalizedMedicalResourceName(resource?.name||h.resourceName||"");
-      const qty=Math.abs(num(h.qty));
-      if(resourceName==="KIT DE SOIN")kits+=qty;
-      if(resourceName==="SERINGUE VIVIFIANTE")syringes+=qty;
-      total+=h.total!=null?Math.abs(num(h.total)):qty*Math.abs(num(h.unitPrice));
-    });
-    return {kits,syringes,total};
-  }
+
   function renderMedicalFeesTable(){
     const body=$("medicalFeesBody");
     if(!body)return;
-    const names=new Set([...medicalFeeDoctors,...medicalFeeDoctorNamesFromHistory()]);
-    const doctors=[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
+    const doctors=Array.isArray(medicalFeeDoctors)?medicalFeeDoctors:[];
     if(!doctors.length){
       body.innerHTML='<tr><td colspan="5" class="empty">Aucun docteur à afficher.</td></tr>';
       return;
     }
-    body.innerHTML=doctors.map(name=>{
-      const summary=medicalFeeSummaryForDoctor(name);
-      const action=isAdmin?'<button class="btn danger medical-fees-reset" type="button" data-doctor="'+encodeURIComponent(name)+'">Reset</button>':'<span class="muted">—</span>';
-      return '<tr><td><strong style="color:#102845">'+esc(name)+'</strong></td><td>'+summary.kits+'</td><td>'+summary.syringes+'</td><td class="money">'+money(summary.total)+'</td><td>'+action+'</td></tr>';
+    body.innerHTML=doctors.map(row=>{
+      const action=isAdmin?'<button class="btn danger medical-fees-reset" type="button" data-user-id="'+esc(row.userId||"")+'">Reset</button>':'<span class="muted">—</span>';
+      return '<tr><td><strong style="color:#102845">'+esc(row.name)+'</strong></td><td>'+num(row.kits)+'</td><td>'+num(row.syringes)+'</td><td class="money">'+money(row.total)+'</td><td>'+action+'</td></tr>';
     }).join("");
   }
+
   function renderHistory(){
     const types=[...new Set(state.history.map(h=>h.type))],current=$("historyType").value;
     $("historyType").innerHTML='<option value="">Tous les types</option>'+types.map(t=>`<option value="${esc(t)}">${esc(typeLabel(t))}</option>`).join("");
@@ -5009,10 +4984,21 @@ $('navigationSave').addEventListener('click',async()=>{
     }
     const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK"].includes(type);
     if(resource&&removes&&num(resource.stock)<qty){toast("Stock insuffisant pour cette sortie.");return;}
-    const qDelta=type==="FRAIS_MEDICAUX"?0:(["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0);
-    const cashDelta=type==="FRAIS_MEDICAUX"?0:(type==="ACHAT"?-total:type==="VENTE"?total:0);
+    const qDelta=["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0;
+    const cashDelta=type==="ACHAT"?-total:type==="VENTE"?total:0;
     try{
-      const {error}=await db.rpc("apply_movement",{p_resource_id:resource?.id||null,p_quantity_delta:qDelta,p_unit_price:["ACHAT","VENTE","FRAIS_MEDICAUX"].includes(type)?price:null,p_cash_delta:cashDelta,p_movement_type:type,p_note:note||null,p_effective_date:$("mvDate").value||todayISO()});
+      if(medicalFees){
+        const {error}=await db.rpc("add_medical_fee_usage",{p_resource_id:resource.id,p_quantity:qty});
+        if(error)throw error;
+        $("movementForm").reset();
+        $("mvDate").value=todayISO();
+        fillMovementResources();
+        medicalFeeDoctorsLoaded=false;
+        await loadMedicalFeeDoctors(true);
+        toast("Frais médicaux ajoutés au tableau du docteur.");
+        return;
+      }
+      const {error}=await db.rpc("apply_movement",{p_resource_id:resource?.id||null,p_quantity_delta:qDelta,p_unit_price:["ACHAT","VENTE"].includes(type)?price:null,p_cash_delta:cashDelta,p_movement_type:type,p_note:note||null,p_effective_date:$("mvDate").value||todayISO()});
       if(error)throw error;
       $("movementForm").reset();$("mvDate").value=todayISO();fillMovementResources();await loadRemoteState();toast("Opération enregistrée en ligne.");
     }catch(err){dbError(err);}
@@ -5022,22 +5008,15 @@ $('navigationSave').addEventListener('click',async()=>{
     const button=e.target.closest(".medical-fees-reset");
     if(!button)return;
     if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
-    const doctor=decodeURIComponent(button.dataset.doctor||"");
-    if(!doctor)return;
+    const userId=button.dataset.userId||"";
+    if(!userId)return;
+    const row=medicalFeeDoctors.find(item=>String(item.userId)===String(userId));
+    const doctor=row?.name||"ce docteur";
     try{
       button.disabled=true;
-      const {error}=await db.rpc("apply_movement",{
-        p_resource_id:null,
-        p_quantity_delta:0,
-        p_unit_price:null,
-        p_cash_delta:0,
-        p_movement_type:"FRAIS_MEDICAUX_RESET",
-        p_note:medicalFeeResetMarker(doctor),
-        p_effective_date:todayISO()
-      });
+      const {error}=await db.rpc("admin_reset_medical_fee_usage",{p_user_id:userId});
       if(error)throw error;
       medicalFeeDoctorsLoaded=false;
-      await loadRemoteState(true,true);
       await loadMedicalFeeDoctors(true);
       toast("Compteur de "+doctor+" réinitialisé.");
     }catch(err){
