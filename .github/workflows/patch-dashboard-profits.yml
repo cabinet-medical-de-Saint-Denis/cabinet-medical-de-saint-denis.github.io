@@ -84,15 +84,40 @@ jobs:
 
           text = replace_card(text, "Dépenses du mois", expenses_add_profit)
 
-          month_fn = '''  function monthExpenses(){
-            const ym=todayISO().slice(0,7);
-            return state.history.filter(h=>String(h.date||"").startsWith(ym) && (h.type==="ACHAT"||h.type==="CAISSE_SORTIE"||h.type==="FRAIS_LIVRAISON"))
-              .reduce((a,h)=>a+Math.max(0,-num(h.cashDelta)),0);
-          }'''
-          if month_fn not in text:
-              raise RuntimeError("monthExpenses function not found in expected form")
+          def function_bounds(source, signature):
+              start = source.find(signature)
+              if start < 0:
+                  raise RuntimeError(f"Function not found: {signature}")
+              brace = source.find("{", start)
+              if brace < 0:
+                  raise RuntimeError(f"Opening brace not found: {signature}")
+              depth = 0
+              quote = None
+              escape = False
+              i = brace
+              while i < len(source):
+                  ch = source[i]
+                  if quote:
+                      if escape:
+                          escape = False
+                      elif ch == "\\":
+                          escape = True
+                      elif ch == quote:
+                          quote = None
+                  else:
+                      if ch in ('"', "'", "`"):
+                          quote = ch
+                      elif ch == "{":
+                          depth += 1
+                      elif ch == "}":
+                          depth -= 1
+                          if depth == 0:
+                              return start, i + 1
+                  i += 1
+              raise RuntimeError(f"Closing brace not found: {signature}")
 
-          profit_fns = month_fn + '''
+          fn_start, fn_end = function_bounds(text, "function monthExpenses()")
+          profit_fns = '''
           function pharmacySaleProfit(h){
             if(h?.type!=="PHARMACIE_VENTE")return 0;
             const soldQty=Math.abs(num(h.qty));
@@ -122,26 +147,22 @@ jobs:
               .filter(h=>h.type==="PHARMACIE_VENTE" && String(h.date||"")>=start && String(h.date||"")<=end)
               .reduce((total,h)=>total+pharmacySaleProfit(h),0);
           }'''
-          text = text.replace(month_fn, profit_fns, 1)
+          text = text[:fn_end] + "\n" + profit_fns + text[fn_end:]
 
-          old_render = '''    $("dashCash").textContent=money(state.cash);
-              $("dashStockValue").textContent=money(stockValue());
-              $("dashPharmacyValue").textContent=money(pharmacyStockValue());
-              $("dashCabinetValue").textContent=money(state.cash+stockValue());
-              $("dashMonthExpenses").textContent=money(monthExpenses());
-              $("cashBig").textContent=money(state.cash);'''
-          if old_render not in text:
-              raise RuntimeError("Dashboard render block not found in expected form")
+          stock_line = re.compile(r'\$\("dashStockValue"\)\.textContent\s*=\s*money\(stockValue\(\)\);')
+          if not stock_line.search(text):
+              raise RuntimeError("dashStockValue render assignment not found")
+          text = stock_line.sub('$("dashCabinetProfitWeek").textContent=money(weekPharmacyProfit());', text, count=1)
 
-          new_render = '''    $("dashCash").textContent=money(state.cash);
-              $("dashCabinetProfitWeek").textContent=money(weekPharmacyProfit());
-              $("dashPharmacyValue").textContent=money(pharmacyStockValue());
-              $("dashCabinetValue").textContent=money(state.cash+stockValue());
-              $("dashStockValue").textContent=money(stockValue());
-              $("dashMonthExpenses").textContent=money(monthExpenses());
-              $("dashMonthProfit").textContent=money(monthPharmacyProfit());
-              $("cashBig").textContent=money(state.cash);'''
-          text = text.replace(old_render, new_render, 1)
+          cabinet_line = re.compile(r'(\$\("dashCabinetValue"\)\.textContent\s*=\s*money\(state\.cash\+stockValue\(\)\);)')
+          if not cabinet_line.search(text):
+              raise RuntimeError("dashCabinetValue render assignment not found")
+          text = cabinet_line.sub(r'\1\n    $("dashStockValue").textContent=money(stockValue());', text, count=1)
+
+          expenses_line = re.compile(r'(\$\("dashMonthExpenses"\)\.textContent\s*=\s*money\(monthExpenses\(\)\);)')
+          if not expenses_line.search(text):
+              raise RuntimeError("dashMonthExpenses render assignment not found")
+          text = expenses_line.sub(r'\1\n    $("dashMonthProfit").textContent=money(monthPharmacyProfit());', text, count=1)
 
           required = [
               'id="dashCabinetProfitWeek"',
