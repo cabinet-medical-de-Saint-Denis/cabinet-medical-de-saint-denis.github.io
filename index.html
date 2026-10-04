@@ -2022,6 +2022,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
                     <option value="ACHAT">Achat</option>
                     <option value="VENTE">Vente</option>
                     <option value="RETRAIT_STOCK">Retrait du stock</option>
+                    <option value="FRAIS_MEDICAUX">Frais médicaux</option>
                   </select>
                 </div>
                 <div class="field"><label>Quantité</label><input type="number" id="mvQty" min="0.01" step="0.01" required></div>
@@ -2058,6 +2059,29 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
               <div class="form-actions"><button class="btn" type="submit">Valider le mouvement</button></div>
             </form>
           </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3 class="section-title">Frais médicaux par docteur <small>suivi des consommables utilisés en service</small></h3>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Docteur</th>
+                  <th>KIT DE SOIN utilisés</th>
+                  <th>SERINGUE VIVIFIANTE utilisées</th>
+                  <th>À reverser à la banque</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="medicalFeesBody">
+                <tr><td colspan="5" class="empty">Chargement du suivi médical…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="hint" style="margin:12px 0 0">Le montant correspond au coût de fabrication des KIT DE SOIN et SERINGUE VIVIFIANTE utilisés. Il n’est pas ajouté à la comptabilité du cabinet.</p>
         </div>
       </div>
     </section>
@@ -2536,6 +2560,8 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
   let unpaidDebtClockTimer = null;
   let pharmacyItems = [];
   let pharmacyLoading = false;
+  let medicalFeeDoctors=[];
+  let medicalFeeDoctorsLoaded=false;
   let bureauSessionReadAt = null;
   let bureauSessionHadUnread = false;
   let giphySearchTimer = null;
@@ -2770,6 +2796,8 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
     el.className="sync-state "+kind;
   }
   function typeLabel(t){
+    if(arguments[0]==="FRAIS_MEDICAUX")return "Frais médicaux";
+    if(arguments[0]==="FRAIS_MEDICAUX_RESET")return "Reset frais médicaux";
     return {
       ACHAT:"Achat",DEPOT:"Dépôt",SORTIE:"Sortie",RETRAIT_STOCK:"Retrait du stock",VENTE:"Vente",PHARMACIE_VENTE:"Vente pharmacie",
       CORRECTION_PLUS:"Correction +",CORRECTION_MOINS:"Correction -",
@@ -3445,6 +3473,7 @@ $('navigationSave').addEventListener('click',async()=>{
         const isCash=["CAISSE_ENTREE","CAISSE_SORTIE"].includes(h.movement_type);
         const isDeliveryFee=h.movement_type==="FRAIS_LIVRAISON";
         const isStockWithdrawal=h.movement_type==="RETRAIT_STOCK";
+        const isMedicalFees=h.movement_type==="FRAIS_MEDICAUX";
         const withdrawalUnitCost=isStockWithdrawal?recipeUnitCost(h.resource_id):null;
         return {
           id:h.id,
@@ -3718,17 +3747,29 @@ $('navigationSave').addEventListener('click',async()=>{
     $("inventoryCount").textContent=inventoryResources.length+" ressources";
     $("inventoryValue").textContent="Valeur : "+money(inventoryResources.reduce((sum,r)=>sum+num(r.stock)*num(r.unitPrice),0));
   }
+  function normalizedMedicalResourceName(value){
+    return resourceNameText(value).normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  }
+  function isMedicalFeeResource(resource){
+    const name=normalizedMedicalResourceName(resource?.name||"");
+    return name==="KIT DE SOIN" || name==="SERINGUE VIVIFIANTE";
+  }
   function fillMovementResources(){
     const current=$("mvResource").value;
-    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
-    const resources=activeResources().filter(r=>r.kind==="ingredient" || state.recipes.some(rc=>rc.productId===r.id)).filter(r=>!withdrawal||state.recipes.some(rc=>rc.productId===r.id));
-    $("mvResource").innerHTML=resources.map(r=>`<option value="${esc(r.id)}">${esc(resourceNameText(r.name))}</option>`).join("")+
-      (withdrawal?"":'<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>');
-    if(resources.some(r=>r.id===current)||(!withdrawal&&current==="__OTHER__"))$("mvResource").value=current;
-    $("mvQty").min=withdrawal?"1":"0.01";
-    $("mvQty").step=withdrawal?"1":"0.01";
-    $("mvPrice").disabled=withdrawal;
-    $("mvPrice").closest(".field").style.display=withdrawal?"none":"";
+    const type=$("mvType").value;
+    const withdrawal=type==="RETRAIT_STOCK";
+    const medicalFees=type==="FRAIS_MEDICAUX";
+    let resources=activeResources().filter(r=>r.kind==="ingredient" || state.recipes.some(rc=>rc.productId===r.id));
+    if(withdrawal)resources=resources.filter(r=>state.recipes.some(rc=>rc.productId===r.id));
+    if(medicalFees)resources=resources.filter(r=>state.recipes.some(rc=>rc.productId===r.id)&&isMedicalFeeResource(r));
+    $("mvResource").innerHTML=resources.map(r=>'<option value="'+esc(r.id)+'">'+esc(resourceNameText(r.name))+'</option>').join("")+
+      (withdrawal||medicalFees?"":'<option value="__OTHER__">Autre (indiquer le motif dans la note ci-dessous)</option>');
+    if(resources.some(r=>r.id===current)||(!withdrawal&&!medicalFees&&current==="__OTHER__"))$("mvResource").value=current;
+    const integerQty=withdrawal||medicalFees;
+    $("mvQty").min=integerQty?"1":"0.01";
+    $("mvQty").step=integerQty?"1":"0.01";
+    $("mvPrice").disabled=integerQty;
+    $("mvPrice").closest(".field").style.display=integerQty?"none":"";
     $("mvTotal").closest(".field").querySelector("label").textContent="Total";
     syncMovementPrice();
   }
@@ -3740,23 +3781,29 @@ $('navigationSave').addEventListener('click',async()=>{
     },0);
   }
   function syncMovementPrice(){
-    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const type=$("mvType").value;
+    const withdrawal=type==="RETRAIT_STOCK";
+    const medicalFees=type==="FRAIS_MEDICAUX";
     const r=res($("mvResource").value);
-    $("mvPrice").value=withdrawal?"0.00":num(r?.unitPrice).toFixed(2);
+    $("mvPrice").value=withdrawal?"0.00":medicalFees?recipeUnitCost(r?.id).toFixed(2):num(r?.unitPrice).toFixed(2);
     const bankNote="à remettre à la banque du cabinet";
+    const medicalNote="frais médicaux · à remettre à la banque du cabinet";
     if(withdrawal){
       $("mvNote").value=bankNote;
       $("mvNote").readOnly=true;
+    }else if(medicalFees){
+      $("mvNote").value=medicalNote;
+      $("mvNote").readOnly=true;
     }else{
-      if($("mvNote").value===bankNote)$("mvNote").value="";
+      if($("mvNote").value===bankNote||$("mvNote").value===medicalNote)$("mvNote").value="";
       $("mvNote").readOnly=false;
     }
     calcMovementTotal();
   }
   function calcMovementTotal(){
-    const withdrawal=$("mvType").value==="RETRAIT_STOCK";
+    const type=$("mvType").value;
     const qty=num($("mvQty").value);
-    const unitCost=withdrawal?recipeUnitCost($("mvResource").value):num($("mvPrice").value);
+    const unitCost=(type==="RETRAIT_STOCK"||type==="FRAIS_MEDICAUX")?recipeUnitCost($("mvResource").value):num($("mvPrice").value);
     $("mvTotal").value=money(qty*unitCost);
   }
   function outstandingOrderQty(resourceId){
@@ -3885,6 +3932,66 @@ $('navigationSave').addEventListener('click',async()=>{
         </tr>`;
       }).join("");
       return header+rows;
+    }).join("");
+  }
+  function medicalFeeResetMarker(name){
+    return "__MEDICAL_FEES_RESET__:"+encodeURIComponent(String(name||"").trim());
+  }
+  function medicalFeeDoctorNamesFromHistory(){
+    const names=new Set();
+    state.history.forEach(h=>{
+      if(h.type==="FRAIS_MEDICAUX" && h.actorName)names.add(String(h.actorName).trim());
+    });
+    if(currentProfile?.display_name)names.add(String(currentProfile.display_name).trim());
+    return [...names].filter(Boolean);
+  }
+  async function loadMedicalFeeDoctors(force=false){
+    if(medicalFeeDoctorsLoaded&&!force){renderMedicalFeesTable();return;}
+    const names=new Set(medicalFeeDoctorNamesFromHistory());
+    if(isAdmin){
+      try{
+        const {data,error}=await db.rpc("admin_list_profiles");
+        if(error)throw error;
+        (data||[]).filter(u=>u.access_status==="approved").forEach(u=>{
+          if(u.display_name)names.add(String(u.display_name).trim());
+        });
+      }catch(err){console.warn("Liste des docteurs pour frais médicaux :",err);}
+    }
+    medicalFeeDoctors=[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
+    medicalFeeDoctorsLoaded=true;
+    renderMedicalFeesTable();
+  }
+  function medicalFeeSummaryForDoctor(name){
+    const marker=medicalFeeResetMarker(name);
+    let start=-1;
+    state.history.forEach((h,index)=>{
+      if(h.type==="FRAIS_MEDICAUX_RESET" && h.note===marker)start=index;
+    });
+    let kits=0,syringes=0,total=0;
+    state.history.slice(start+1).forEach(h=>{
+      if(h.type!=="FRAIS_MEDICAUX" || String(h.actorName||"").trim()!==name)return;
+      const resource=h.resourceId?res(h.resourceId):null;
+      const resourceName=normalizedMedicalResourceName(resource?.name||h.resourceName||"");
+      const qty=Math.abs(num(h.qty));
+      if(resourceName==="KIT DE SOIN")kits+=qty;
+      if(resourceName==="SERINGUE VIVIFIANTE")syringes+=qty;
+      total+=h.total!=null?Math.abs(num(h.total)):qty*Math.abs(num(h.unitPrice));
+    });
+    return {kits,syringes,total};
+  }
+  function renderMedicalFeesTable(){
+    const body=$("medicalFeesBody");
+    if(!body)return;
+    const names=new Set([...medicalFeeDoctors,...medicalFeeDoctorNamesFromHistory()]);
+    const doctors=[...names].filter(Boolean).sort((a,b)=>a.localeCompare(b,"fr-FR",{sensitivity:"base"}));
+    if(!doctors.length){
+      body.innerHTML='<tr><td colspan="5" class="empty">Aucun docteur à afficher.</td></tr>';
+      return;
+    }
+    body.innerHTML=doctors.map(name=>{
+      const summary=medicalFeeSummaryForDoctor(name);
+      const action=isAdmin?'<button class="btn danger medical-fees-reset" type="button" data-doctor="'+encodeURIComponent(name)+'">Reset</button>':'<span class="muted">—</span>';
+      return '<tr><td><strong style="color:#102845">'+esc(name)+'</strong></td><td>'+summary.kits+'</td><td>'+summary.syringes+'</td><td class="money">'+money(summary.total)+'</td><td>'+action+'</td></tr>';
     }).join("");
   }
   function renderHistory(){
@@ -4546,7 +4653,7 @@ $('navigationSave').addEventListener('click',async()=>{
     document.querySelector(".brand h1").innerHTML=esc(state.settings.name).replace(/\sde\sSaint-Denis/i,"<br>de Saint-Denis");
     document.querySelector(".brand p").textContent=state.settings.place;
   }
-  function renderAll(){loadNavigation();renderDashboard();renderInventory();fillMovementResources();renderCraft();renderRecipes();fillRemoveIngredientSelect();renderSuppliers();renderHistory();renderSettings();}
+  function renderAll(){loadNavigation();renderDashboard();renderInventory();fillMovementResources();renderCraft();renderRecipes();fillRemoveIngredientSelect();renderSuppliers();renderHistory();renderMedicalFeesTable();loadMedicalFeeDoctors();renderSettings();}
 
 
 
@@ -4888,24 +4995,57 @@ $('navigationSave').addEventListener('click',async()=>{
     e.preventDefault();
     const isOther=$("mvResource").value==="__OTHER__";
     const resource=isOther?null:res($("mvResource").value);
-    const type=$("mvType").value,qty=num($("mvQty").value),price=num($("mvPrice").value),total=qty*price;
-    const note=type==="RETRAIT_STOCK"?"à remettre à la banque du cabinet":$("mvNote").value.trim();
+    const type=$("mvType").value,qty=num($("mvQty").value);
+    const medicalFees=type==="FRAIS_MEDICAUX";
+    const price=medicalFees?recipeUnitCost(resource?.id):num($("mvPrice").value),total=qty*price;
+    const note=type==="RETRAIT_STOCK"?"à remettre à la banque du cabinet":medicalFees?"frais médicaux · à remettre à la banque du cabinet":$("mvNote").value.trim();
     if((!isOther&&!resource)||qty<=0){toast("Indique une ressource et une quantité valide.");return;}
     if(isOther&&!note){toast("Pour « Autre », indique obligatoirement le motif dans la note.");$("mvNote").focus();return;}
     if(type==="RETRAIT_STOCK"&&(!resource||!state.recipes.some(rc=>rc.productId===resource.id)||!Number.isInteger(qty))){
       toast("Choisis un article de recette et une quantité entière.");return;
     }
-    const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK"].includes(type);
+    if(medicalFees&&(!resource||!isMedicalFeeResource(resource)||!state.recipes.some(rc=>rc.productId===resource.id)||!Number.isInteger(qty))){
+      toast("Les frais médicaux acceptent uniquement KIT DE SOIN ou SERINGUE VIVIFIANTE avec une quantité entière.");return;
+    }
+    const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK","FRAIS_MEDICAUX"].includes(type);
     if(resource&&removes&&num(resource.stock)<qty){toast("Stock insuffisant pour cette sortie.");return;}
     const qDelta=["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0;
     const cashDelta=type==="ACHAT"?-total:type==="VENTE"?total:0;
     try{
-      const {error}=await db.rpc("apply_movement",{p_resource_id:resource?.id||null,p_quantity_delta:qDelta,p_unit_price:["ACHAT","VENTE"].includes(type)?price:null,p_cash_delta:cashDelta,p_movement_type:type,p_note:note||null,p_effective_date:$("mvDate").value||todayISO()});
+      const {error}=await db.rpc("apply_movement",{p_resource_id:resource?.id||null,p_quantity_delta:qDelta,p_unit_price:["ACHAT","VENTE","FRAIS_MEDICAUX"].includes(type)?price:null,p_cash_delta:cashDelta,p_movement_type:type,p_note:note||null,p_effective_date:$("mvDate").value||todayISO()});
       if(error)throw error;
       $("movementForm").reset();$("mvDate").value=todayISO();fillMovementResources();await loadRemoteState();toast("Opération enregistrée en ligne.");
     }catch(err){dbError(err);}
   });
   $("resetMovement").addEventListener("click",()=>{$("movementForm").reset();$("mvDate").value=todayISO();fillMovementResources();calcMovementTotal();toast("Zone de saisie réinitialisée.");});
+  $("medicalFeesBody")?.addEventListener("click",async e=>{
+    const button=e.target.closest(".medical-fees-reset");
+    if(!button)return;
+    if(!isAdmin){toast("Action réservée à l’administrateur.");return;}
+    const doctor=decodeURIComponent(button.dataset.doctor||"");
+    if(!doctor)return;
+    try{
+      button.disabled=true;
+      const {error}=await db.rpc("apply_movement",{
+        p_resource_id:null,
+        p_quantity_delta:0,
+        p_unit_price:null,
+        p_cash_delta:0,
+        p_movement_type:"FRAIS_MEDICAUX_RESET",
+        p_note:medicalFeeResetMarker(doctor),
+        p_effective_date:todayISO()
+      });
+      if(error)throw error;
+      medicalFeeDoctorsLoaded=false;
+      await loadRemoteState(true,true);
+      await loadMedicalFeeDoctors(true);
+      toast("Compteur de "+doctor+" réinitialisé.");
+    }catch(err){
+      dbError(err,"Impossible de réinitialiser cette ligne.");
+    }finally{
+      button.disabled=false;
+    }
+  });
   $("cashForm").addEventListener("submit",async e=>{
     e.preventDefault();const type=$("cashType").value,amount=num($("cashAmount").value);if(amount<=0)return;const delta=type==="CAISSE_ENTREE"?amount:-amount;
     try{const {error}=await db.rpc("apply_movement",{p_resource_id:null,p_quantity_delta:0,p_unit_price:null,p_cash_delta:delta,p_movement_type:type,p_note:$("cashNote").value.trim()||null,p_effective_date:todayISO()});if(error)throw error;$("cashForm").reset();await loadRemoteState();toast("Mouvement de caisse enregistré.");}catch(err){dbError(err);}
