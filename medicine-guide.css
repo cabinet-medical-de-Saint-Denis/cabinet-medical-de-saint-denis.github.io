@@ -1,0 +1,20 @@
+#medicineGuide .guide-shell{max-width:1100px;margin:0 auto}
+#medicineGuide .guide-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;justify-content:center;margin:0 0 16px}
+#medicineGuide .guide-book{display:grid;grid-template-columns:54px minmax(0,1fr) 54px;gap:14px;align-items:start}
+#medicineGuide .guide-page-wrap{min-width:0;perspective:1800px}
+#medicineGuide .guide-image-page,#medicineGuide .guide-paper{width:min(100%,760px);margin:auto;position:relative}
+#medicineGuide .guide-image-page{background:#120d0a;border:1px solid #8d6c3f;box-shadow:10px 18px 42px #0009;border-radius:4px;overflow:hidden}
+#medicineGuide .guide-image-page img{display:block;width:100%;height:auto;aspect-ratio:1414/2000;object-fit:contain;background:#120d0a}
+#medicineGuide .guide-paper{min-height:980px;background:radial-gradient(ellipse at 80% 8%,#fff8df99,transparent 55%),linear-gradient(90deg,#b08b58 0,#e2c89a 4%,#f1dfba 48%,#d9bb87 100%);color:#342317;padding:54px 62px;border:1px solid #9b7948;box-shadow:10px 18px 42px #0009;border-radius:3px 9px 9px 3px}
+#medicineGuide .guide-paper:before{content:"";position:absolute;inset:15px;border:1px solid #9b764777;pointer-events:none}
+#medicineGuide .guide-paper h3{position:relative;text-align:center;color:#642d20;font-size:29px;font-weight:normal;margin:5px 0 32px}
+#medicineGuide .guide-text{position:relative;white-space:pre-wrap;line-height:1.72;font-size:16px}
+#medicineGuide .guide-final{display:grid;place-items:center;text-align:center;min-height:840px;font-size:clamp(42px,6vw,82px);line-height:1.08;font-weight:bold;color:#6f1712;text-transform:uppercase}
+#medicineGuide .guide-arrow{position:sticky;top:45vh;margin-top:330px;width:54px;height:66px;border-radius:28px;border:1px solid #b58c4a;background:linear-gradient(110deg,#543921,#21150f 55%,#65482b);color:#e4c382;font-size:30px}
+#medicineGuide .guide-arrow:disabled{opacity:.28;cursor:default}
+#medicineGuide .guide-counter{text-align:center;color:#c8af81;margin-top:16px}
+#medicineGuide .guide-admin{display:none;margin-top:14px;padding:14px;border:1px solid rgba(199,156,84,.42);background:rgba(0,0,0,.12)}
+#medicineGuide .guide-admin.show{display:block}
+#medicineGuide .guide-admin-grid{display:grid;grid-template-columns:1fr;gap:10px}
+#medicineGuide .guide-admin textarea{min-height:220px}
+@media(max-width:700px){#medicineGuide .guide-book{grid-template-columns:34px minmax(0,1fr) 34px;gap:5px}#medicineGuide .guide-paper{min-height:620px;padding:35px 25px}#medicineGuide .guide-arrow{width:34px;height:52px;font-size:22px;margin-top:190px}}

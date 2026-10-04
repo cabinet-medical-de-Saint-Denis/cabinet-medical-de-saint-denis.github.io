@@ -1654,6 +1654,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
 <style id="resource-names-uppercase">
 #newRecipeName,#newIngredientName,#supplierNewResourceName,.recipe-name{text-transform:uppercase}
 </style>
+  <link rel="stylesheet" href="medicine-guide.css">
 </head>
 <body class="locked" data-site-version="2026-09-21-1806">
 
@@ -1698,6 +1699,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
       <button class="active" data-view="dashboard"><span class="ico">⌂</span>Tableau de bord</button>
       <button data-view="bureau"><span class="ico">✉</span>LE BUREAU</button>
       <button data-view="consultations"><span class="ico">▤</span>Carnet de consultations</button>
+<button data-view="medicineGuide"><span class="ico">✚</span>Guide de la médecine</button>
       <button data-view="westlegacy"><span class="ico">↗</span>Panel WestLegacy</button>
       <button data-view="inventory"><span class="ico">▦</span>Inventaire</button>
       <button data-view="pharmacy"><span class="ico">⚕</span>Pharmacie</button>
@@ -2413,6 +2415,35 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
     </section>
 
 
+<section id="medicineGuide" class="view">
+  <div class="guide-shell">
+    <div class="guide-toolbar">
+      <button id="guideHome" class="btn" type="button">Couverture</button>
+      <button id="guideRefresh" class="btn secondary" type="button">Actualiser</button>
+      <button id="guideToggleAdmin" class="btn" type="button" hidden>Gérer les pages</button>
+      <span id="guideStatus"></span>
+    </div>
+    <div class="guide-book">
+      <button id="guidePrev" class="guide-arrow" type="button" aria-label="Page précédente">‹</button>
+      <div class="guide-page-wrap">
+        <div id="guideImagePage" class="guide-image-page"><img id="guidePageImage" alt=""></div>
+        <article id="guidePaper" class="guide-paper" hidden><h3 id="guidePageTitle"></h3><div id="guidePageBody" class="guide-text"></div></article>
+      </div>
+      <button id="guideNext" class="guide-arrow" type="button" aria-label="Page suivante">›</button>
+    </div>
+    <div id="guideCounter" class="guide-counter"></div>
+    <div id="guideAdmin" class="guide-admin">
+      <div class="guide-admin-grid">
+        <div class="field"><label>Titre de la nouvelle page</label><input id="guideNewTitle" maxlength="160"></div>
+        <div class="field"><label>Contenu</label><textarea id="guideNewBody"></textarea></div>
+        <div class="form-actions">
+          <button id="guideAddPage" class="btn good" type="button">Ajouter la page avant les remerciements</button>
+          <button id="guideDeletePage" class="btn danger" type="button">Supprimer la page affichée</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 <section id="consultations" class="view">
  <div class="book-toolbar"><button id="bookHome" class="btn">Couverture</button><button id="bookRefresh" class="btn secondary">Actualiser le carnet</button><button id="bookNew" class="btn" hidden>Ajouter un rapport</button><button id="bookCategoryEdit" class="btn" hidden>Gérer les intercalaires</button><span id="bookStatus" role="status"></span></div>
  <div class="book-layout">
@@ -2480,6 +2511,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="medicine-guide.js"></script>
 <script>
 (async function(){
   const SUPABASE_URL = "https://fhyaikylibxxiibdtrcs.supabase.co";
@@ -3380,6 +3412,8 @@ $('navigationSave').addEventListener('click',async()=>{
  }catch(e){dbError(e);}finally{navigationSaving=false;$('navigationSave').disabled=false;}
 });
 
+  const medicineGuide=window.RhodesMedicineGuide.init({db,$,toast,dbError,getCurrentUser:()=>currentUser,getCurrentProfile:()=>currentProfile});
+
   function setView(id){
     if(id==="recipes" && !isAdmin){
       toast("La catégorie Recettes est réservée à l’administrateur.");
@@ -3394,6 +3428,7 @@ $('navigationSave').addEventListener('click',async()=>{
     const btn=document.querySelector(`#nav button[data-view="${id}"],#privateNav button[data-view="${id}"]`);
     $("pageTitle").textContent=btn?btn.textContent.trim():"Cabinet Médical";
     if(id==="consultations")loadBook();
+    if(id==="medicineGuide")medicineGuide.load();
     if(id==="notebooksAdmin" && isBookSupervisor())loadAdminNotebookUsers();
     if(id==="users" && (isAdmin||isAdjoint)) loadUsers();
     if(id==="pharmacy")loadPharmacy();
