@@ -5007,10 +5007,10 @@ $('navigationSave').addEventListener('click',async()=>{
     if(medicalFees&&(!resource||!isMedicalFeeResource(resource)||!state.recipes.some(rc=>rc.productId===resource.id)||!Number.isInteger(qty))){
       toast("Les frais médicaux acceptent uniquement KIT DE SOIN ou SERINGUE VIVIFIANTE avec une quantité entière.");return;
     }
-    const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK","FRAIS_MEDICAUX"].includes(type);
+    const removes=["SORTIE","VENTE","CORRECTION_MOINS","RETRAIT_STOCK"].includes(type);
     if(resource&&removes&&num(resource.stock)<qty){toast("Stock insuffisant pour cette sortie.");return;}
-    const qDelta=["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0;
-    const cashDelta=type==="ACHAT"?-total:type==="VENTE"?total:0;
+    const qDelta=type==="FRAIS_MEDICAUX"?0:(["ACHAT","DEPOT","CORRECTION_PLUS"].includes(type)?qty:removes?-qty:0);
+    const cashDelta=type==="FRAIS_MEDICAUX"?0:(type==="ACHAT"?-total:type==="VENTE"?total:0);
     try{
       const {error}=await db.rpc("apply_movement",{p_resource_id:resource?.id||null,p_quantity_delta:qDelta,p_unit_price:["ACHAT","VENTE","FRAIS_MEDICAUX"].includes(type)?price:null,p_cash_delta:cashDelta,p_movement_type:type,p_note:note||null,p_effective_date:$("mvDate").value||todayISO()});
       if(error)throw error;
