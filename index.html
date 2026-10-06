@@ -3823,7 +3823,21 @@ $('navigationSave').addEventListener('click',async()=>{
     const name=normalizedMedicalResourceName(resource?.name||"");
     return name==="KIT DE SOIN" || name==="SERINGUE VIVIFIANTE";
   }
+  const movementTypeOptions=[...$("mvType").options].map(option=>({value:option.value,label:option.textContent}));
+  function canUseTradeOperations(){
+    return currentProfile?.access_status==="approved"
+      && ["chef_de_cabinet","medecin_adjoint"].includes(currentProfile?.medical_grade);
+  }
+  function syncMovementTypes(){
+    const select=$("mvType"),current=select.value;
+    const options=movementTypeOptions.filter(option=>canUseTradeOperations()||!["ACHAT","VENTE"].includes(option.value));
+    if([...select.options].map(option=>option.value).join("|")===options.map(option=>option.value).join("|"))return false;
+    select.replaceChildren(...options.map(option=>new Option(option.label,option.value)));
+    select.value=options.some(option=>option.value===current)?current:"RETRAIT_STOCK";
+    return true;
+  }
   function fillMovementResources(){
+    syncMovementTypes();
     const current=$("mvResource").value;
     const type=$("mvType").value;
     const withdrawal=type==="RETRAIT_STOCK";
@@ -5037,6 +5051,11 @@ $('navigationSave').addEventListener('click',async()=>{
   $("mvResource").addEventListener("change",syncMovementPrice);$("mvQty").addEventListener("input",calcMovementTotal);$("mvPrice").addEventListener("input",calcMovementTotal);
   $("movementForm").addEventListener("submit",async e=>{
     e.preventDefault();
+    if(["ACHAT","VENTE"].includes($("mvType").value)&&!canUseTradeOperations()){
+      fillMovementResources();
+      toast("Les achats et ventes sont réservés au chef de cabinet et au médecin adjoint.");
+      return;
+    }
     const isOther=$("mvResource").value==="__OTHER__";
     const resource=isOther?null:res($("mvResource").value);
     const type=$("mvType").value,qty=num($("mvQty").value);
@@ -5841,6 +5860,7 @@ $('navigationSave').addEventListener('click',async()=>{
       return false;
     }
     currentProfile=Array.isArray(data)?(data[0]||null):(data||null);
+    if(syncMovementTypes())fillMovementResources();
     isAdmin=currentProfile?.role==="admin" && currentProfile?.access_status==="approved";
     isAdjoint=!isAdmin && currentProfile?.medical_grade==="medecin_adjoint" && currentProfile?.access_status==="approved";
     document.body.classList.toggle("is-admin",isAdmin);
