@@ -5917,7 +5917,7 @@ $('navigationSave').addEventListener('click',async()=>{
         const a=document.activeElement;
         const editing=a&&["INPUT","SELECT","TEXTAREA"].includes(a.tagName);
         const activeView=document.querySelector(".view.active")?.id||"";
-        const safeAutoRefresh=["history"].includes(activeView);
+        const safeAutoRefresh=["dashboard","inventory","movements","history"].includes(activeView);
         const ok=await checkAccess(true);
         if(ok && !editing && safeAutoRefresh)loadRemoteState(true);
       },20000);
