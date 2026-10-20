@@ -2351,7 +2351,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Date</th><th>Heure</th><th>Opération</th><th>Ressource</th><th>Qté</th><th>Prix / montant</th><th>Caisse</th><th title="Montant de la caisse après ce mouvement">Solde de caisse</th><th>Effectué par</th><th>Note</th></tr></thead>
+              <thead><tr><th>Date</th><th>Heure</th><th>Opération</th><th>Ressource</th><th>Qté</th><th>Stock avant</th><th>Stock après</th><th>Prix / montant</th><th>Caisse</th><th title="Montant de la caisse après ce mouvement">Solde de caisse</th><th>Effectué par</th><th>Note</th></tr></thead>
               <tbody id="historyBody"></tbody>
             </table>
           </div>
@@ -3550,6 +3550,7 @@ $('navigationSave').addEventListener('click',async()=>{
           resourceId:h.resource_id,
           resourceName:h.resource_id?res(h.resource_id)?.name||"Ressource":(isCash?"Caisse":"Autre"),
           qty:isDeliveryFee?null:(h.resource_id||!isCash)?num(h.quantity_delta):null,
+          stockBefore:h.details?.stock_before==null?null:num(h.details.stock_before),stockAfter:h.details?.stock_after==null?null:num(h.details.stock_after),
           unitPrice:isStockWithdrawal?withdrawalUnitCost:(h.unit_price==null?null:num(h.unit_price)),
           total:isStockWithdrawal?Math.abs(num(h.quantity_delta))*withdrawalUnitCost:(h.unit_price==null?null:Math.abs(num(h.quantity_delta))*num(h.unit_price)),
           amount:(isCash||isDeliveryFee)?Math.abs(num(h.cash_delta)):null,
@@ -4058,7 +4059,7 @@ $('navigationSave').addEventListener('click',async()=>{
     $("historyType").value=types.includes(current)?current:"";
     const q=$("historySearch").value.trim().toLowerCase(),t=$("historyType").value,m=$("historyMonth").value;
     const filtered=[...state.history].reverse().filter(h=>{const rn=h.resourceId?res(h.resourceId)?.name||h.resourceName||"":h.resourceName||"";const hay=(typeLabel(h.type)+" "+rn+" "+(h.actorName||"")+" "+(h.note||"")).toLowerCase();return (!q||hay.includes(q))&&(!t||h.type===t)&&(!m||String(h.date||"").startsWith(m));});
-    $("historyBody").innerHTML=filtered.length?filtered.map(h=>`<tr><td>${esc(h.date||"")}</td><td>${esc(h.time||"—")}</td><td><span class="pill ${["ACHAT","CAISSE_SORTIE"].includes(h.type)?"red":["VENTE","PHARMACIE_VENTE","CAISSE_ENTREE"].includes(h.type)?"green":"gold"}">${esc(typeLabel(h.type))}</span></td><td>${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"—":h.resourceName||"—")}</td><td>${h.qty!=null?esc(h.qty):"—"}</td><td class="money">${h.unitPrice!=null?money(h.total!=null?h.total:num(h.qty)*num(h.unitPrice)):h.amount!=null?money(h.amount):"—"}</td><td class="${num(h.cashDelta)<0?"bad":num(h.cashDelta)>0?"good":"muted"}">${num(h.cashDelta)===0?"—":(num(h.cashDelta)>0?"+":"")+money(h.cashDelta)}</td><td class="money" style="white-space:nowrap" title="Solde après ce mouvement">${h.cashBalanceAfter==null?"—":money(h.cashBalanceAfter)}</td><td><strong style="color:#102845">${esc(h.actorName||"Utilisateur inconnu")}</strong></td><td>${esc(h.note||"")}</td></tr>`).join(""):`<tr><td colspan="10" class="empty">Aucun mouvement ne correspond aux filtres.</td></tr>`;
+    $("historyBody").innerHTML=filtered.length?filtered.map(h=>`<tr><td>${esc(h.date||"")}</td><td>${esc(h.time||"—")}</td><td><span class="pill ${["ACHAT","CAISSE_SORTIE"].includes(h.type)?"red":["VENTE","PHARMACIE_VENTE","CAISSE_ENTREE"].includes(h.type)?"green":"gold"}">${esc(typeLabel(h.type))}</span></td><td>${esc(h.resourceId?res(h.resourceId)?.name||h.resourceName||"—":h.resourceName||"—")}</td><td>${h.qty!=null?esc(h.qty):"—"}</td><td>${h.stockBefore!=null?esc(h.stockBefore):"—"}</td><td>${h.stockAfter!=null?esc(h.stockAfter):"—"}</td><td class="money">${h.unitPrice!=null?money(h.total!=null?h.total:num(h.qty)*num(h.unitPrice)):h.amount!=null?money(h.amount):"—"}</td><td class="${num(h.cashDelta)<0?"bad":num(h.cashDelta)>0?"good":"muted"}">${num(h.cashDelta)===0?"—":(num(h.cashDelta)>0?"+":"")+money(h.cashDelta)}</td><td class="money" style="white-space:nowrap" title="Solde après ce mouvement">${h.cashBalanceAfter==null?"—":money(h.cashBalanceAfter)}</td><td><strong style="color:#102845">${esc(h.actorName||"Utilisateur inconnu")}</strong></td><td>${esc(h.note||"")}</td></tr>`).join(""):`<tr><td colspan="12" class="empty">Aucun mouvement ne correspond aux filtres.</td></tr>`;
   }
   async function loadUsers(){
     if(!(isAdmin||isAdjoint))return;
