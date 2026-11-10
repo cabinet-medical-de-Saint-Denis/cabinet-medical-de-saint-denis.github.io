@@ -2619,6 +2619,7 @@ body{background:#030609 var(--rh-wood) center/650px repeat!important;color:#f2ef
     return value=>String(value||"").replace(mentions,(_,prefix,name)=>prefix+resourceNameText(name));
   }
 
+  const formatSafeDate=(value,options,fallback="—")=>{const d=value instanceof Date?value:new Date(value);return Number.isFinite(d.getTime())?new Intl.DateTimeFormat("fr-FR",options).format(d):fallback;};
   const todayISO=()=>new Date().toISOString().slice(0,10);
   const res=id=>state.resources.find(r=>r.id===id);
   const recipe=id=>state.recipes.find(r=>r.productId===id);
@@ -3545,7 +3546,7 @@ $('navigationSave').addEventListener('click',async()=>{
         return {
           id:h.id,
           date:h.effective_date||String(h.created_at||"").slice(0,10),
-          time:h.created_at?new Intl.DateTimeFormat("fr-FR",{hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(h.created_at)):"—",
+          time:h.created_at?formatSafeDate(h.created_at,{hour:"2-digit",minute:"2-digit",hour12:false}):"—",
           type:h.movement_type,
           resourceId:h.resource_id,
           resourceName:h.resource_id?res(h.resource_id)?.name||"Ressource":(isCash?"Caisse":"Autre"),
@@ -3666,7 +3667,7 @@ $('navigationSave').addEventListener('click',async()=>{
       const inProgress=o.status==="en_cours";
       const delivered=o.status==="livre";
       const date=o.deliveryDate
-        ? new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}).format(new Date(o.deliveryDate+"T12:00:00"))
+        ? formatSafeDate(String(o.deliveryDate).slice(0,10)+"T12:00:00",{day:"2-digit",month:"2-digit",year:"numeric"})
         : "—";
       const time=o.deliveryTime?String(o.deliveryTime).slice(0,5):"—";
       const dateCell=!delivered
@@ -4119,7 +4120,7 @@ $('navigationSave').addEventListener('click',async()=>{
             ? `<button class="btn danger user-access-btn" data-id="${esc(u.id)}" data-status="revoked">Retirer l’accès</button>`
             : `<button class="btn good user-access-btn" data-id="${esc(u.id)}" data-status="approved">${status==="revoked"?"Réautoriser":"Autoriser"}</button>`;
         }
-        const created=u.created_at?new Intl.DateTimeFormat("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}).format(new Date(u.created_at)):"—";
+        const created=u.created_at?formatSafeDate(u.created_at,{day:"2-digit",month:"2-digit",year:"numeric"}):"—";
         const grade=u.medical_grade||"apprenti";
         const isSelfChef=self && grade==="chef_de_cabinet";
         const gradeControl=isSelfChef
@@ -4166,9 +4167,10 @@ $('navigationSave').addEventListener('click',async()=>{
   function bureauDateLabel(value){
     if(!value)return "";
     const d=new Date(value);
+    if(!Number.isFinite(d.getTime()))return "Date inconnue";
     const today=new Date();
     const same=d.toDateString()===today.toDateString();
-    return new Intl.DateTimeFormat("fr-FR",same?{hour:"2-digit",minute:"2-digit"}:{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}).format(d);
+    return formatSafeDate(d,same?{hour:"2-digit",minute:"2-digit"}:{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"},"Date inconnue");
   }
 
   async function bureauSignedUrl(path){
